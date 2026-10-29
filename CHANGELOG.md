@@ -6,6 +6,7 @@ Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöh
 
 Erster Stand, noch ohne Release.
 
+- **CI:** Die Workflows lassen sich zusätzlich von Hand starten (`workflow_dispatch`).
 - **Deutsches Datumsformat:** Im CSV-Export steht das Datum auf Deutsch als `tt.mm.jjjj` (Uhrzeit `hh:mm:ss`); Oberfläche und PDF-Berichte nutzten es bereits.
 - **Haftungsausschluss:** Gefahrenhinweise zu Überdruck, Verletzung und Tod entfernt; Verantwortung, Gewährleistungs- und Haftungsregelung unverändert. In der App „auf eigene Verantwortung“ statt „auf eigene Gefahr“.
 
