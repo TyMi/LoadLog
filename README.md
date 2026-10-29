@@ -64,7 +64,7 @@ unter `/manual/<Version>/` aus. Die App hat **keine Anmeldung**: nur im vertraue
 
 ```bash
 cd backend  && uv sync && uv run pytest && uv run ruff check src tests
-cd frontend && npm ci && npm test && npm run typecheck && npm run build      # Node 24
+cd frontend && npm ci && npm test && npm run typecheck && npm run build      # Node 26
 uv run --project backend python scripts/smoke_test.py http://127.0.0.1:8080   # Smoketest gegen laufende Instanz
 uv run --project backend python -m loadlog.synth ./synthetic-sd                # synthetische SD-Karte
 ```
@@ -143,7 +143,7 @@ Details, usage and settings: [manual](docs/manual/en/index.html) ([Deutsch](docs
 
 ```bash
 cd backend  && uv sync && uv run pytest && uv run ruff check src tests
-cd frontend && npm ci && npm test && npm run typecheck && npm run build      # Node 24
+cd frontend && npm ci && npm test && npm run typecheck && npm run build      # Node 26
 uv run --project backend python scripts/smoke_test.py http://127.0.0.1:8080   # smoke test against a running instance
 uv run --project backend python -m loadlog.synth ./synthetic-sd                # synthetic SD card
 ```

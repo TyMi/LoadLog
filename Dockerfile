@@ -2,7 +2,7 @@
 # Python-Pakete aus backend/uv.lock mit Hashes, npm-Pakete aus package-lock.json (npm ci).
 
 # --- Frontend bauen ---
-FROM node:24-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c AS ui
+FROM node:26-slim@sha256:e4db4c914bf8ad241bd24804fc25d272d89bad97e68cdc8a1414862790a02c39 AS ui
 WORKDIR /ui
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund

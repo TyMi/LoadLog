@@ -16,3 +16,6 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: node
+        versions: ["25.x", "27.x", "29.x"]  # nur LTS-Versionen (gerade Major-Nummern)
