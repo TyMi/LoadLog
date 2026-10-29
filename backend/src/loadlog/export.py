@@ -40,7 +40,7 @@ def shots_csv(rows: list[tuple[str | None, SeriesRecord]], units: str, lang: str
         for s in rec.shots:
             at = {round(d, 1): v for d, v in zip(s.distances_m, s.velocities_ms, strict=False)}
             w.writerow([safe(x) for x in [
-                load_name or "", rec.number, rec.name or "", s.taken_at.strftime("%Y-%m-%d"), s.number, s.taken_at.strftime("%H:%M:%S"),
+                load_name or "", rec.number, rec.name or "", s.taken_at.strftime("%d.%m.%Y" if lang == "de" else "%Y-%m-%d"), s.number, s.taken_at.strftime("%H:%M:%S"),
                 _num(v_out(s.v0_ms, units), 1, lang),
                 _num(grains(s.weight_g), 1, lang) if s.weight_g else "",
                 _num(e_out(s.energy0_j, units), 0, lang) if s.energy0_j is not None else "",

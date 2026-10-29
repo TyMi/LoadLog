@@ -62,8 +62,9 @@ def test_csv_export_series_de_and_en(client):
     assert lines[0].startswith("Laborierung;Serie;") and lines[1].startswith("Probe;")
     assert len(lines) - 1 - 1 == client.get(f"/api/series/{sid}").json()["shots_total"]  # Kopf und leere Schlusszeile
     assert re.search(r";\d+,\d;", lines[1])  # Dezimalkomma
+    assert re.search(r";\d{2}\.\d{2}\.\d{4};\d+;\d{2}:\d{2}:\d{2};", lines[1])  # deutsches Datum tt.mm.jjjj, Uhrzeit hh:mm:ss
     en = client.get(f"/api/export/series/{sid}.csv?lang=en&units=imp").text.lstrip("﻿").split("\r\n")
-    assert en[0].startswith("Load,Series,") and "fps" in en[0] and re.search(r",\d+\.\d,", en[1])
+    assert en[0].startswith("Load,Series,") and "fps" in en[0] and re.search(r",\d+\.\d,", en[1]) and re.search(r",\d{4}-\d{2}-\d{2},", en[1])
 
 
 def test_csv_export_load_contains_all_series(client):
