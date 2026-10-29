@@ -58,7 +58,7 @@ unter `/manual/<Version>/` aus. Die App hat **keine Anmeldung**: nur im vertraue
   Energie, **Impuls (MIP)**, **Ballistischer Koeffizient (G1/G7)**, Signalstärke, Geschossgewicht überschreiben
 - Ladeleitern und Setztiefen-Tests als Darstellung der Messungen, Serienvergleich (bis 60 Serien) mit Trendlinie
 - PDF-Berichte (Serie, Laborierung, Vergleich) und CSV-Export
-- Seite *System*: Sprache (DE/EN), Einheiten (m/s·J ↔ fps·ft-lbf), Datensicherung herunterladen und wiederherstellen, Version
+- Seite *Einstellungen*: Sprache (DE/EN), Einheiten (m/s·J ↔ fps·ft-lbf), Datensicherung herunterladen und wiederherstellen, Version
 
 ### Entwicklung
 
@@ -137,7 +137,7 @@ Details, usage and settings: [manual](docs/manual/en/index.html) ([Deutsch](docs
   energy, **impulse (MIP)**, **ballistic coefficient (G1/G7)**, signal strength, bullet weight override
 - Charge ladders and seating tests as a presentation of the measurements, series comparison (up to 60 series) with a trend line
 - PDF reports (series, load, comparison) and CSV export
-- *System* page: language (DE/EN), units (m/s·J ↔ fps·ft-lbf), download and restore a backup, version
+- *Settings* page: language (DE/EN), units (m/s·J ↔ fps·ft-lbf), download and restore a backup, version
 
 ### Development
 

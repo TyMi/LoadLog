@@ -22,10 +22,10 @@ Erster Stand, noch ohne Release.
   Abweichung von der Laborierung.
 - **Vergleich:** bis 60 Serien, Beschriftungen werden ausgedünnt, Zurück führt zur gemeinsamen Laborierung.
 - **Export:** PDF-Berichte (mit Impuls und BC) und CSV je Serie und Laborierung (Excel-tauglich, Formelzeichen entschärft).
-- **System:** Sprache und Einheiten, Datensicherung herunterladen und wiederherstellen (mit automatischer Sicherung des alten Stands,
+- **Einstellungen:** Sprache und Einheiten, Datensicherung herunterladen und wiederherstellen (mit automatischer Sicherung des alten Stands,
   Prüfung der Datei, Schutz gegen fremde Webseiten), Version, Handbuch.
 - **Meldungen:** Der Server liefert Code und Parameter, die Oberfläche übersetzt auf Deutsch und Englisch.
-- **Abgrenzung und Haftungsausschluss:** README (Deutsch und Englisch), Handbuch und Seite *System* stellen klar, dass LoadLog ein Journal ist und keine Laborierungsentwicklung (keine Ladedaten, keine Empfehlungen), und dass der Wiederlader selbst verantwortlich ist.
+- **Abgrenzung und Haftungsausschluss:** README (Deutsch und Englisch), Handbuch und Seite *Einstellungen* stellen klar, dass LoadLog ein Journal ist und keine Laborierungsentwicklung (keine Ladedaten, keine Empfehlungen), und dass der Wiederlader selbst verantwortlich ist.
 - **Rechtliche Hinweise:** Haftungsklausel mit ausdrücklichem Vorbehalt für Vorsatz, grobe Fahrlässigkeit, Leben, Körper, Gesundheit und Produkthaftung; Haftungshinweis am Ende jedes PDF-Berichts; `THIRD_PARTY_NOTICES.md` (u. a. LGPL-3.0 für `py_ballisticcalc`) auch im Docker-Image; Herkunftsvermerk der Formatbeschreibungen; Beitragsbedingung (inbound = outbound); Impulsformel mit Quelle (Sportordnung des DSB, Regel 2.21.1) und Hinweis, dass LoadLog die offizielle Munitionsprüfung nicht ersetzt; Hinweis, dass alle Beispieldaten fiktiv sind; GitHub Actions per Commit-SHA festgelegt.
 - **Handbuch:** Deutsch und Englisch mit eigenen Screenshots (nur synthetische Daten), liegt unter `/manual/0.0/<Sprache>/`.
 - **Technik:** Schema 4 (Serie und Laborierung n:m, automatische Migration), Python 3.15 im Container (CI testet 3.12 und 3.15),

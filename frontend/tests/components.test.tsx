@@ -5,7 +5,7 @@ import { AppCtx } from "../src/app";
 import { tr } from "../src/i18n";
 import { setMessageLang } from "../src/messages";
 import type { Lang, Units } from "../src/units";
-import { LoadView, LoadsView, SeriesView, SystemView } from "../src/views";
+import { LoadView, LoadsView, SeriesView, SettingsView } from "../src/views";
 
 const stats = { n: 5, avg: 300, sd: 2, es: 6, vmin: 297, vmax: 303, energy_avg_j: 3000, mip_avg: 349.6, mip_min: 340.2 };
 const load = (id: number, name: string, weapon_id: number | null, weapon_name: string | null) => ({
@@ -175,11 +175,11 @@ describe("Laborierung: Ladeleiter", () => {
   });
 });
 
-describe("System", () => {
+describe("Einstellungen", () => {
   it("schaltet Sprache und Einheiten um", () => {
     const setLang = vi.fn();
     const setUnits = vi.fn();
-    mount(<SystemView />, { setLang, setUnits });
+    mount(<SettingsView />, { setLang, setUnits });
     fireEvent.click(screen.getByRole("button", { name: "English" }));
     fireEvent.click(screen.getByRole("button", { name: "fps · ft-lbf" }));
     expect(setLang).toHaveBeenCalledWith("en");
@@ -187,7 +187,7 @@ describe("System", () => {
   });
 
   it("zeigt Version, Handbuchlink mit zwei Stellen und Sicherungslink", () => {
-    mount(<SystemView />);
+    mount(<SettingsView />);
     expect(screen.getByRole("note").textContent).toContain("keine Laborierungsentwicklung");
     expect(screen.getByRole("link", { name: "Abgrenzung und Haftungsausschluss" }).getAttribute("href")).toBe("/manual/0.0/de/#disclaimer");
     expect(screen.getByText("0.0.1")).toBeTruthy();
@@ -205,7 +205,7 @@ describe("System", () => {
   it("Wiederherstellen: erst nach Bestätigung, mit Schutz-Header, zeigt das Ergebnis", async () => {
     fakeFetch((url) => (url === "/api/system/restore" ? new Response(JSON.stringify({ weapons: 1, loads: 2, series: 3, shots: 15 }), { status: 200 }) : undefined));
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    const view = mount(<SystemView />);
+    const view = mount(<SettingsView />);
     pickFile(view);
     expect(confirm).toHaveBeenCalled();
     await Promise.resolve();
@@ -225,7 +225,7 @@ describe("System", () => {
         : undefined,
     );
     vi.spyOn(window, "confirm").mockReturnValue(true);
-    const view = mount(<SystemView />, { lang: "en" });
+    const view = mount(<SettingsView />, { lang: "en" });
     pickFile(view);
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Not a valid LoadLog backup");

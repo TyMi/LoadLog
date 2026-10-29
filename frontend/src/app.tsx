@@ -5,7 +5,7 @@ import { api } from "./api";
 import { type Key, tr } from "./i18n";
 import type { Lang, Units } from "./units";
 import { urls } from "./api";
-import { CompareView, ImportView, LoadView, LoadsView, SeriesView, SystemView, WeaponsView } from "./views";
+import { CompareView, ImportView, LoadView, LoadsView, SeriesView, SettingsView, WeaponsView } from "./views";
 
 interface Ctx {
   lang: Lang;
@@ -76,9 +76,9 @@ export function App() {
   else if (parts[0] === "compare" && parts[1]) view = <CompareView ids={parts[1].split(",").map(Number).filter(Number.isFinite)} />;
   else if (parts[0] === "import") view = <ImportView />;
   else if (parts[0] === "weapons") view = <WeaponsView />;
-  else if (parts[0] === "system") view = <SystemView />;
+  else if (parts[0] === "settings") view = <SettingsView />;
   else view = <LoadsView />;
-  const active = parts[0] === "import" || parts[0] === "weapons" || parts[0] === "system" ? parts[0] : "loads";
+  const active = parts[0] === "import" || parts[0] === "weapons" || parts[0] === "settings" ? parts[0] : "loads";
   const cur = (k: string) => (active === k ? "page" : undefined);
 
   return (
@@ -97,7 +97,7 @@ export function App() {
           <a href="#/import" aria-current={cur("import")}>{t("navImport")}</a>
           <a href="#/weapons" aria-current={cur("weapons")}>{t("navWeapons")}</a>
           <a href={urls.manual(lang, ctx.manualVersion)} target="_blank" rel="noopener">{t("manual")}</a>
-          <a href="#/system" aria-current={cur("system")}>{t("navSystem")}</a>
+          <a href="#/settings" aria-current={cur("settings")}>{t("navSettings")}</a>
         </nav>
       </header>
       <main>{view}</main>

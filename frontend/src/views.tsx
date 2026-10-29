@@ -193,8 +193,8 @@ const reportLinks = (pdf: boolean, pdfUrl: string, htmlUrl: string, t: (k: Key) 
 
 const dateText = (iso: string | null, lang: string) => (iso ? new Date(iso).toLocaleDateString(lang === "de" ? "de-DE" : "en-GB") : "–");
 
-// ---------- System ----------
-export function SystemView() {
+// ---------- Einstellungen ----------
+export function SettingsView() {
   const { t, lang, units, pdf, version, manualVersion, setLang, setUnits } = useApp();
   const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
   const [busy, setBusy] = useState(false);
@@ -215,7 +215,7 @@ export function SystemView() {
   };
   return (
     <>
-      <h1>{t("navSystem")}</h1>
+      <h1>{t("navSettings")}</h1>
       <section class="panel col">
         <h2>{t("sysDisplay")}</h2>
         <div class="row">
