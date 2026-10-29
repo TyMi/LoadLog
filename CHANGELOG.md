@@ -2,13 +2,21 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
-## 0.0.1 (in Arbeit, noch nicht veröffentlicht)
+## 0.0.2
 
-Erster Stand, noch ohne Release.
+Änderungen nach der Veröffentlichung auf GitHub.
 
 - **CI:** Die Workflows lassen sich zusätzlich von Hand starten (`workflow_dispatch`).
 - **Deutsches Datumsformat:** Im CSV-Export steht das Datum auf Deutsch als `tt.mm.jjjj` (Uhrzeit `hh:mm:ss`); Oberfläche und PDF-Berichte nutzten es bereits.
 - **Haftungsausschluss:** Gefahrenhinweise zu Überdruck, Verletzung und Tod entfernt; Verantwortung, Gewährleistungs- und Haftungsregelung unverändert. In der App „auf eigene Verantwortung“ statt „auf eigene Gefahr“.
+- **README:** Zwei Screenshots (Serienansicht, Serienvergleich; fiktive Beispieldaten) in der deutschen und englischen Fassung.
+- **Einstellungen:** Der Menüpunkt *System* heißt jetzt *Einstellungen* (Adresse `#/settings`).
+- **Technik:** Node 26 (LTS) für den Frontend-Build, Dependabot nur für LTS-Versionen von Node, Python-Abhängigkeiten aktualisiert.
+- **Handy-Ansicht:** Tabellen (Serien einer Laborierung, Schüsse, Serienvergleich) erscheinen auf schmalen Bildschirmen als Karten mit Beschriftung über jedem Wert; nichts wird mehr abgeschnitten, Knöpfe und Beschriftungen brechen nicht mehr unglücklich um.
+
+## 0.0.1
+
+Erster Stand.
 
 - **Import:** LabRadar-SD-Karten (Ordner, ZIP, mehrere gleichzeitig, Drag & Drop, auch Ordnerwahl am Mac) und GRT-Dateien
   (`.grtload`, legt Laborierung und Serien an). Import auch direkt in einer Laborierung. Mehrfachauswahl mit Zuordnen,

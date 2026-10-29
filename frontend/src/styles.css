@@ -44,7 +44,28 @@ textarea { padding: 10px; min-height: 90px; } input.bad { border-color: var(--da
 .drop { border: 2px dashed var(--border); border-radius: 10px; padding: 28px 20px; text-align: center; } .drop.over { border-color: var(--amber); background: var(--panel2); }
 .msg { padding: 10px 14px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--border); } .msg.err { border-color: var(--danger); color: var(--danger); }
 .sidebar-layout { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; } .sidebar-layout > .main { flex: 999 1 520px; min-width: 0; } .sidebar-layout > .side { flex: 1 1 340px; min-width: 0; }
-@media (max-width: 600px) { main { padding: 16px; } header { padding: 10px 16px; } }
+.pair { display: flex; align-items: center; gap: 12px; } .wlist td.acts { width: 200px; text-align: right; white-space: nowrap; }
+.btn { text-wrap: balance; text-align: center; justify-content: center; } th { white-space: nowrap; }
+@media (max-width: 600px) {
+  main { padding: 16px; } header { padding: 10px 16px; }
+  .btn { padding: 0 12px; }
+  nav.top { flex: 1 1 100%; } nav.top a { flex: 1 1 auto; justify-content: center; padding: 10px 8px; }
+  td, th { padding-left: 5px; padding-right: 5px; }
+  .wlist, .wlist tbody, .wlist tr, .wlist td { display: block; } .wlist td { border: 0; padding: 4px 0; }
+  .wlist tr { padding: 8px 0; border-top: 1px solid var(--border); } .wlist td.acts { width: auto; text-align: left; display: flex; gap: 8px; } .wlist td.acts .btn { flex: 1 1 0; }
+  /* Tabellen als Karten: Beschriftung über jedem Wert, nichts bricht um oder verschwindet hinter dem Rand */
+  .rt, .rt tbody { display: block; }
+  .rt thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .rt tr { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; align-items: start; padding: 12px 4px; border-top: 1px solid var(--border); }
+  .rt td { display: block; grid-column: span 6; border: 0; padding: 0; text-align: left; min-width: 0; }
+  .rt td.n { text-align: left; }
+  .rt td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; font: 11px/1.3 "IBM Plex Sans", system-ui, sans-serif; color: var(--muted); white-space: nowrap; }
+  .rt td.c-sel { grid-column: 1 / 3; grid-row: 1; align-self: center; } .rt td.c-name { grid-column: 3 / 11; grid-row: 1; align-self: center; } .rt td.c-x { grid-column: 11 / 13; grid-row: 1; justify-self: end; align-self: center; }
+  .rt td.c-full { grid-column: 1 / -1; font-weight: 500; }
+  .rt-shots td.c-num { grid-column: 1 / 5; grid-row: 1; align-self: center; } .rt-shots td.c-num .plain { min-height: 36px; width: auto; font-weight: 600; }
+  .rt-shots td.c-status { grid-column: 5 / -1; grid-row: 1; justify-self: end; align-self: center; } .rt-shots td.c-status .btn { min-width: 0 !important; }
+  tr.sel { background: var(--panel2); box-shadow: inset 3px 0 0 var(--amber); } tr.sel td { background: transparent; box-shadow: none; }
+}
 .load-group { margin-top: 20px; } .group-title { margin: 0 0 10px; font-size: 16px; }
 .loads-list { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; } .loads-list td { padding: 8px; border-top: 1px solid var(--border); } .loads-list td.n, .loads-list th.n { text-align: right; font-family: "IBM Plex Mono", monospace; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px 4px 12px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel2); }
@@ -61,3 +82,5 @@ label.btn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
 .stat-groups .cards4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat-groups .cards2 { grid-template-columns: minmax(0, 1fr); }
 .stat-groups .card { min-width: 0; } .stat-groups .card .l { overflow-wrap: anywhere; }
 .note-box { margin-top: 6px; padding: 10px 14px; border-left: 4px solid var(--amber, #f5a623); background: var(--panel2); border-radius: 4px; font-size: 13px; }
+@media (min-width: 481px) and (max-width: 600px) { .rt td { grid-column: span 4; } }
+@media (max-width: 600px) { .rt-shots td { grid-column: span 4; } .rt-shots td.c-num { grid-column: 1 / 5; } .rt-shots td.c-status { grid-column: 5 / -1; } }
