@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LoadLog Manual</title><link rel="stylesheet" href="../style.css"></head>
+<body><div class="wrap">
+<nav class="toc" aria-label="LoadLog Manual"><ol><li><a href="#intro">Introduction</a></li><li><a href="#disclaimer">Scope and disclaimer</a></li><li><a href="#install">Installation</a></li><li><a href="#import">Import: SD card and GRT</a></li><li><a href="#loads">Loads</a></li><li><a href="#series">Series and shots</a></li><li><a href="#ladder">Charge ladders and seating depth</a></li><li><a href="#compare">Comparison and trend</a></li><li><a href="#pdf">PDF reports</a></li><li><a href="#export">CSV export</a></li><li><a href="#system">System: language, units, backup</a></li><li><a href="#data">Data and backup</a></li><li><a href="#versions">Versions</a></li><li><a href="#security">Security and network</a></li><li><a href="#troubleshooting">Troubleshooting</a></li><li><a href="#glossary">Glossary</a></li></ol></nav>
+<main><p class="lang"><a href="../de/">Deutsch</a></p><h1>LoadLog Manual</h1>
+<p class="muted">This manual applies to LoadLog 0.0.x.</p>
+<section id="intro"><h2>Introduction</h2><p>LoadLog is a journal for your loads and the matching measurements of the <strong>LabRadar</strong>. You record loads with their master data, assign the imported series to them, exclude outliers and see statistics, impulse, ballistic coefficient, velocity curves, comparisons and trends. Reports can be saved as PDF, measurements exported as CSV.</p>
+<div class="note"><strong>Important:</strong> LoadLog is a journal for measurements, not a tool for developing loads. It only records what you loaded and measured. Please read <a href="#disclaimer">Scope and disclaimer</a>.</div>
+<figure><img src="../img/en/01-loads.png" alt="Overview of loads, grouped by firearm"><figcaption>Overview: loads as cards, here grouped by firearm. All values are fictional.</figcaption></figure></section>
+<section id="disclaimer"><h2>Scope and disclaimer</h2>
+<h3>A journal, not load development</h3>
+<p>LoadLog records and evaluates what you loaded and measured yourself. It is <strong>not a tool for developing loads</strong>:</p>
+<ul><li>It does <strong>not calculate load data</strong> and gives <strong>no load recommendations</strong>: no powder charges, no starting or maximum loads, no "best" load, no pressure or safety calculations.</li>
+<li>It does not replace the load tables, manuals or specifications of the manufacturers.</li>
+<li>All data on powder, charge, bullet, seating depth etc. is purely your own input. LoadLog checks it neither for plausibility nor for safety.</li>
+<li>Evaluations (average, standard deviation, energy, impulse, ballistic coefficient, etc.) are computed approximations from the measured values.</li></ul>
+<h3>Disclaimer</h3>
+<p><strong>Reloading is dangerous.</strong> Wrong or improper loads can cause overpressure, destruction of the firearm, serious injury or death. <strong>You, the reloader, are solely responsible</strong>: for your load data (only from reliable, current manufacturer sources), for your care, for the safe handling of firearms and ammunition, and for complying with applicable laws and regulations.</p>
+<p>LoadLog is provided <strong>free of charge, "as is" and without warranty of any kind</strong> (MIT License). Liability for intent and gross negligence, for injury to life, body or health, and under mandatory statutory provisions (e.g. product liability law) <strong>remains unaffected</strong>. Otherwise, to the extent permitted by law, the authors and contributors are <strong>not liable</strong> for damages of any kind, in particular property damage and consequential damage, arising from the use or non-use of the software, from errors, incorrect measurements, calculations or displays, or from data loss. Never rely on LoadLog alone for safety-relevant decisions or for competition scoring. For users to whom German law applies, this liability regime applies instead of the warranty and liability disclaimer of the MIT License wherever the two differ. This text is not legal advice.</p>
+<p>LabRadar and Gordon's Reloading Tool are trademarks or products of their respective owners. LoadLog is an independent, unofficial project and is not affiliated with them.</p>
+<h3>Sample data</h3>
+<p>All values in the figures, examples and demo data (powder, charges, bullet weights, velocities, seating depths) are <strong>entirely fictional</strong>. They are not load data and not a recommendation. They must <strong>not be loaded or replicated</strong>.</p></section>
+<section id="install"><h2>Installation</h2><p>LoadLog runs as a single Docker container on a computer or server in your home network.</p>
+<pre><code>git clone https://github.com/TyMi/LoadLog.git loadlog
+cd loadlog
+docker compose up -d --build</code></pre>
+<p>The app is then available at <code>http://localhost:8080</code>. The data lives in a Docker volume (<code>loadlog-data</code>, one SQLite file). By default the container only listens on the machine itself (<code>127.0.0.1</code>). To reach it from other devices in your home network, set the variable <code>LOADLOG_BIND</code> (see <a href="#security">Security and network</a>).</p>
+<table><tr><th>Variable</th><th>Meaning</th><th>Default</th></tr>
+<tr><td><code>LOADLOG_PORT</code></td><td>Port on the host</td><td>8080</td></tr>
+<tr><td><code>LOADLOG_BIND</code></td><td>Address on the host</td><td>127.0.0.1</td></tr>
+<tr><td><code>LOADLOG_ALLOWED_HOSTS</code></td><td>Allowed host names, comma-separated (optional, protects against DNS rebinding)</td><td>empty (all)</td></tr></table>
+<p>To update, fetch the new version and run <code>docker compose up -d --build</code> again. Your data is kept; the database is upgraded to the new schema automatically at startup. Make a <a href="#system">backup</a> first. The build is largely reproducible: base images are pinned by digest and the Python packages come from the lock file with hash checking (the Debian system packages are not pinned to a version).</p></section>
+<section id="import"><h2>Import: SD card and GRT</h2><p>Open <em>Import</em>. You can drop <strong>several sources at once</strong> into the area or pick them with <em>Choose file</em> and <em>Choose folder</em>:</p>
+<ul><li><strong>LabRadar folders</strong> (<code>LBR</code> from the SD card): drop them in or pick them with <em>Choose folder</em>, also on a Mac. No need to zip anything; several cards at once are fine.</li>
+<li><strong>ZIP files</strong> containing an <code>LBR</code> folder.</li>
+<li><strong>GRT files</strong> (<code>.grtload</code>, Gordon's Reloading Tool): they contain the load <em>and</em> the LabRadar measurements. LoadLog creates the load from them (name, powder, bullet, overall length, seating depth, etc.) and assigns the series. This helps when the SD card has already been overwritten.</li></ul>
+<figure><img src="../img/en/05-import.png" alt="Import page with unassigned series"><figcaption>Import: drop or choose files; below, the not yet assigned series with multi-select.</figcaption></figure>
+<h3>Assign, undo, delete</h3>
+<p>New series from folders and ZIPs appear under <em>Series not yet assigned</em>. Tick one or more, choose a load and click <em>Assign</em>. The message offers <em>Undo</em> in case of a slip. <em>Delete</em> removes the ticked series after confirmation; the measurements can always be imported again from the SD card or the GRT file.</p>
+<h3>Import directly in a load</h3>
+<p>Every load also has an import. New series are assigned to that load right away. With a GRT file, LoadLog only fills <em>empty</em> master data fields; existing entries are never overwritten.</p>
+<h3>Duplicates</h3>
+<ul><li>The same source is recognised and skipped. You can import an SD card again at any time.</li>
+<li>LoadLog also recognises the same series from <em>different</em> sources (SD card and GRT file): same first shot (±2 seconds), same number of shots and the same V0.</li>
+<li>If the <strong>SD card comes after the GRT file</strong>, the rounded GRT values are replaced by the more precise card data (including signal strength). Load, name, notes, weight and excluded shots are kept.</li>
+<li>If the <strong>GRT file comes after the SD card</strong>, it is skipped. Both are shown as a note in the import result.</li></ul>
+<ul><li>The <code>.lbr</code> files (full precision, signal strength) and the track files (velocity over distance) are read. If an <code>.lbr</code> is missing, LoadLog uses the rounded values from <code>Report.csv</code>.</li>
+<li>The measuring distances set on the device (Dx1 to Dx5) are detected automatically.</li>
+<li>GRT files contain V0 and the velocities rounded to 1 m/s, plus the track. Signal strength and device number are missing. Defective or implausible shots are discarded and reported as a note.</li></ul>
+<div class="note">In <strong>Doppler trigger</strong> mode, V0 is the velocity when the bullet enters the radar beam, not at the muzzle. You can record the trigger used per series; the file itself does not contain it.</div></section>
+<section id="loads"><h2>Loads</h2><p>A <strong>load</strong> summarises what you loaded. Choose <em>New load</em> and fill in what you want to record; all fields except the name are optional.</p>
+<h3>Overview</h3>
+<p>At the top right you choose the display: <em>Cards</em> or <em>List</em>, and whether the loads are grouped <em>by firearm</em>. The choice is remembered in the browser.</p>
+<figure><img src="../img/en/06-loads-list.png" alt="Loads as a list, grouped by firearm"><figcaption>List view, grouped by firearm. Clicking a row opens the load.</figcaption></figure>
+<figure><img src="../img/en/02-load.png" alt="Load with master data and series"><figcaption>Load: master data on the left, series, statistics and charts on the right.</figcaption></figure>
+<table><tr><th>Area</th><th>Fields</th></tr>
+<tr><td>General</td><td>Name, trial type (single measurement, charge ladder, seating test), firearm</td></tr>
+<tr><td>Powder</td><td>Maker, type, lot, charge in grains</td></tr>
+<tr><td>Case and primer</td><td>Case (maker), number of firings, trim length, primer</td></tr>
+<tr><td>Bullet</td><td>Maker, type, weight in grains, lot</td></tr>
+<tr><td>Dimensions</td><td>Overall length (COAL), seating depth in mm, seating reference (e.g. ogive), crimp</td></tr>
+<tr><td>Other</td><td>Temperature, notes</td></tr></table>
+<p>Manage firearms once under <em>Firearms</em> and pick them in each load. You may enter numbers with a comma or a point.</p>
+<h3>Series of a load</h3>
+<ul><li>You can <strong>sort</strong> the series by date, charge or name.</li>
+<li><strong>Add:</strong> <em>Add existing series</em> puts any existing series into this load, even one that already belongs to another load (note “also in …”).</li>
+<li><strong>Remove:</strong> The × in the row only takes the series out of this load. The series itself is kept.</li>
+<li><strong>Deleting</strong> a load does not delete series; if they belong to no other load they become <em>unassigned</em> again.</li>
+<li><strong>Apply the load's weight:</strong> sets the load's weight on all its series for impulse and energy (see <a href="#series">Series and shots</a>). <em>Remove override</em> undoes it.</li></ul></section>
+<section id="series"><h2>Series and shots</h2><p>Open a series to see all shots. The chart overlays the velocity curves of all shots (velocity over distance). The date of the shots is shown once in the header; the shot list only shows the time.</p>
+<figure><img src="../img/en/03-series.png" alt="Series view with key figures in three groups, chart with hover display and shot list"><figcaption>Series: key figures in three groups, curves with value display, shot list and detail.</figcaption></figure>
+<h3>Chart and selection</h3>
+<ul><li><strong>Mouse-over:</strong> Moving over the chart shows the nearest measuring point with shot, distance and velocity.</li>
+<li><strong>Select a shot:</strong> Click a line in the chart or anywhere on a row in the shot list (except on the button). The selected shot is highlighted in orange.</li>
+<li><strong>Exclude:</strong> The <em>Counted</em> button in the row excludes an outlier. Excluded shots are always grey and dashed in the chart. Statistics, BC and impulse update immediately; the raw data stays unchanged.</li>
+<li><strong>Signal:</strong> The bars (1 to 5) show signal strength. Few bars indicate poor capture.</li>
+<li><strong>Detail:</strong> Velocity, energy and impulse at the set distances for the selected shot.</li></ul>
+<h3>Key figures</h3>
+<table><tr><th>Group</th><th>Values</th></tr>
+<tr><td>Velocity</td><td>Average, standard deviation (SD, sample), extreme spread (ES), min–max, each from the <em>counted</em> shots</td></tr>
+<tr><td>Energy and impulse</td><td>Avg. energy and avg. impulse (MIP) with the smallest single value (<em>min.</em>)</td></tr>
+<tr><td>Ballistics</td><td>Avg. BC for G1 and G7 with spread</td></tr></table>
+<h3>Impulse (MIP)</h3>
+<p>The minimum impulse (MIP) follows the formula of the sport regulations of the German Shooting Federation (Deutscher Schützenbund, DSB), part 2, rule 2.21.1 (the version currently in force applies): <strong>MIP = 0.1 × bullet weight in grams × velocity in m/s</strong>, without a unit; LoadLog uses V0 for this. Example: 180 grains are 11.66 g, at 300 m/s that gives 349.9. It is shown rounded to whole numbers (350). In the ammunition check under the sport regulations, up to three shots are measured near the muzzle (2 to 3 m distance); a shooter is disqualified if <em>no</em> measurement reaches the required value. LoadLog therefore shows the average and the smallest result (<em>min.</em>) as a cautious indication. With Doppler trigger, V0 is not the muzzle velocity; impulse and energy then do not apply at the muzzle.</p>
+<p>The official ammunition check measures the muzzle velocity with devices approved by the DSB. LoadLog does not replace it: the values are your own preliminary check and not proof towards the range officer.</p>
+<p>The weight comes from the measurement. Below the figures it says which weight was used. If it differs from the load's weight by more than 1 %, a warning appears. This happens when the device was not switched to the right bullet. If the weight is missing, the impulse cannot be calculated.</p>
+<h3>Override bullet weight</h3>
+<p>In the series you can <em>override</em> the weight (in grains). It then applies to impulse, energy and power factor of that series; the measurement data stays unchanged, and leaving the field empty restores the measured value. In the load you apply the load's weight to all series. New series do not take it over by themselves.</p>
+<h3>Ballistic coefficient (BC)</h3>
+<p>From the velocity decay over distance, LoadLog calculates the BC per shot for G1 and G7 (ICAO standard atmosphere, unit lb/in²) and shows the average. This needs at least four measuring points over at least 8 m. Shots with too short a tracked distance and excluded shots are left out. The value is an estimate under standard conditions, not a substitute for a measurement under precisely defined conditions.</p>
+<h3>Name, assignment, loads of the series</h3>
+<p>On the right you give the series a <em>name</em> (empty = “Series &lt;no.&gt;”) and maintain charge, seating depth, trigger mode and note.</p>
+<figure><img src="../img/en/08-series-loads.png" alt="Loads of this series section with two loads"><figcaption>A series can belong to several loads, for example the charge ladder and the main load.</figcaption></figure>
+<p>The <em>Loads of this series</em> section lists all loads of the series. Use × to take it out of one and <em>Add</em> to put it into another. The measurement data is always the same; an exclusion or a weight change takes effect in all loads.</p></section>
+<section id="ladder"><h2>Charge ladders and seating depth</h2><p>LoadLog does not calculate ladders, it presents the measurements. Create a load with the trial type <em>Charge ladder</em> or <em>Seating test</em>, import the series and enter the varied value in each series: the <strong>charge</strong> for a ladder, the <strong>seating depth</strong> for a seating test. When importing a GRT file the charge is already filled in.</p><p>The load statistics (avg, SD, ES) combine all series. For a ladder they mix steps with different charges and therefore say little; the per-series values and the chart are what matter.</p>
+<p>As soon as at least two different values exist, the load shows a chart with the V0 average and ±1 SD over the varied value. The buttons switch between charge and seating depth.</p>
+<div class="note">The chart only shows what was measured. It says nothing about the pressure or safety of a load: a rise in velocity over the charge is no indication of permissible loads. Load data comes only from current manufacturer sources.</div></section>
+<section id="compare"><h2>Comparison and trend</h2><p>Select several series in a load and click <em>Compare selection</em>, or use <em>Series comparison</em> for all of them. Up to 60 series are possible. The chart shows every shot of each series as dots, the average and the ±1 SD band. Open circles are excluded shots. With many series the labels are thinned out.</p>
+<figure><img src="../img/en/04-compare.png" alt="Series comparison with trend line"><figcaption>Comparison with a trend line through the averages.</figcaption></figure>
+<p>The <strong>trend line avg.</strong> is a linear regression through the series averages (in the order shown). The value is the change in mean velocity per series, e.g. due to warming or fouling. With two series it is just a connecting line; it only becomes meaningful with more series. The <em>Δ avg</em> column shows the difference to the previous series. The back button leads to the common load of the series.</p></section>
+<section id="pdf"><h2>PDF reports</h2><p>The series, the load and the comparison have a <em>Report (PDF)</em> button. The report contains the master data, key figures with impulse and BC, charts and the shot table. It is generated in the container, so it looks the same on every device, and follows the chosen language and unit. <em>Print view</em> opens the same page as HTML for printing in the browser.</p>
+<p>If PDF generation is unavailable on your server (missing system libraries), the app shows a note; the print view still works.</p></section>
+<section id="export"><h2>CSV export</h2><p>The series and the load have a <em>CSV export</em> button. It delivers one row per shot with load, series, name, date, time, V0, bullet weight, energy, MIP, power factor, signal, status (counted or excluded) and the velocity at each measuring distance.</p>
+<ul><li>The file follows the language and unit of the display. German: semicolon separator and decimal comma; English: comma and point. It opens directly in Excel and LibreOffice, umlauts included.</li>
+<li>Text starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code> is neutralised so spreadsheets do not execute it as a formula.</li></ul></section>
+<section id="system"><h2>System: language, units, backup</h2><p>Under <em>System</em> (in the menu at the top right) you find the settings and the backup.</p>
+<figure><img src="../img/en/07-system.png" alt="System page with display, backup and info"><figcaption>System: display, backup, version.</figcaption></figure>
+<ul><li><strong>Display:</strong> language (German or English) and units (<strong>m/s · J</strong> or <strong>fps · ft-lbf</strong>). The setting is remembered in the browser. Data is always stored in SI units, conversion only happens in the display, so nothing is lost when switching. Reports and export follow the setting.</li>
+<li><strong>Download backup:</strong> delivers the complete database (firearms, loads, series, shots, notes) as one file.</li>
+<li><strong>Restore backup:</strong> choose a backup file. After a confirmation it replaces <em>all</em> current data. Beforehand LoadLog saves the previous state in the data folder under <code>backups/</code>, so you can go back. Older backups are upgraded to the current schema automatically; backups from a newer LoadLog version and foreign files are rejected.</li>
+<li><strong>Info:</strong> version, link to the manual and whether PDF reports are available.</li></ul>
+<div class="note">A backup also contains your notes and measurements. Keep it safe and do not pass it on unchecked.</div></section>
+<section id="data"><h2>Data and backup</h2><p>All data lives in one SQLite file: <code>/data/loadlog.sqlite3</code> in the volume. The easiest way to back it up and restore it is the <a href="#system">System</a> page. Alternatively you can do it directly on the server (possible while the container is running):</p>
+<pre><code>docker compose cp loadlog:/data/loadlog.sqlite3 ./loadlog-backup.sqlite3</code></pre>
+<p>Restoring by hand: stop the container, copy the file back and start again:</p>
+<pre><code>docker compose stop
+docker compose cp ./loadlog-backup.sqlite3 loadlog:/data/loadlog.sqlite3
+docker compose start</code></pre>
+<p>Deleting a load does not delete series. Deleting a series removes it with its shots from all loads. The original SD card is not affected; you can import it again at any time.</p></section>
+<section id="versions"><h2>Versions</h2><p>LoadLog uses three-part numbers: <code>Major.Minor.Patch</code>, for example 0.0.1. The version is shown in the footer and on the <a href="#system">System</a> page. This manual applies to the <strong>first two digits</strong> (Major.Minor); it is therefore served at an address like <code>/manual/0.0/en/</code>. Older addresses without a version (<code>/manual/en/</code>) redirect there. A patch release does not change the manual.</p></section>
+<section id="security"><h2>Security and network</h2><p>LoadLog has <strong>no login</strong>. Anyone who can reach the address can read and change data and download or upload a backup. Run it only in a trusted home network.</p>
+<ul><li>By default it binds to <code>127.0.0.1</code>. For access from the home network: <code>LOADLOG_BIND=0.0.0.0 docker compose up -d</code>.</li>
+<li>If the app is to be reachable from the internet, put a reverse proxy with authentication in front (e.g. Caddy or nginx with basic auth or a single-sign-on service) and TLS. Never expose the container directly to the internet.</li>
+<li>Uploads are limited to 50 MB per file (backups to 200 MB). The limit is checked against the request size before the body is read (uploads without a length are rejected with 411); ZIPs are only read, never unpacked to disk. When restoring, the file is fully checked and migrated before the running data is replaced.</li>
+<li>Write requests that the browser sends from a foreign web page (<code>Sec-Fetch-Site: cross-site</code> or <code>same-site</code>) are rejected. In addition, <code>LOADLOG_ALLOWED_HOSTS</code> (comma-separated host names) lets you restrict the names under which the app is reachable; this protects against DNS rebinding.</li>
+<li>The automatic API documentation is available at <code>/api/docs</code> and has the same reach as the app. Its Swagger interface loads scripts from <code>cdn.jsdelivr.net</code>; the app itself loads nothing from the internet.</li></ul></section>
+<section id="troubleshooting"><h2>Troubleshooting</h2><table><tr><th>Problem</th><th>Solution</th></tr>
+<tr><td>Import says “No LabRadar series found”</td><td>The folder or ZIP must contain <code>LBR</code> with the <code>SRnnnn</code> subfolders. Check that the measurements were recorded with the SD card inserted.</td></tr>
+<tr><td>A series does not appear again</td><td>It has already been imported (duplicate detection, also between SD card and GRT). The note in the import result names the existing series.</td></tr>
+<tr><td>Cannot select a folder</td><td>Use <em>Choose folder</em> instead of <em>Choose file</em>, or drop the folder into the area.</td></tr>
+<tr><td>No PDF button</td><td>The server lacks system libraries (Pango). The supplied Docker image does not have this problem.</td></tr>
+<tr><td>Values seem shifted</td><td>Doppler trigger: V0 is then not at the muzzle. See <a href="#import">Import</a>.</td></tr>
+<tr><td>Impulse missing or a warning below the key figures</td><td>The measurement has no bullet weight, or one that differs from the load's weight. Override the weight in the series or apply the load's weight.</td></tr>
+<tr><td>No BC shown</td><td>Too few measuring points or too short a tracked distance (at least four points over 8 m). Set more or more distant distances on the device.</td></tr>
+<tr><td>Restoring fails</td><td>The file is not a LoadLog backup, is damaged or comes from a newer version. Your existing data stays unchanged.</td></tr>
+<tr><td>Few signal bars</td><td>Check the radar's alignment and distance (LabRadar manual). Exclude the affected shots if needed.</td></tr></table></section>
+<section id="glossary"><h2>Glossary</h2><table><tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>V0</td><td>Velocity at the start of the measurement (see trigger)</td></tr>
+<tr><td>Dx1…Dx5</td><td>Measuring distances set on the device for the velocities V<sub>x</sub></td></tr>
+<tr><td>SD</td><td>Standard deviation of V0 (sample, n−1)</td></tr>
+<tr><td>ES</td><td>Extreme spread: largest minus smallest V0</td></tr>
+<tr><td>MIP</td><td>Minimum impulse per the sport regulations of the German Shooting Federation (DSB): 0.1 × bullet weight (g) × velocity (m/s), without a unit</td></tr>
+<tr><td>BC (G1, G7)</td><td>Ballistic coefficient for the G1 or G7 drag model, derived from the velocity decay</td></tr>
+<tr><td>PF</td><td>Power factor, calculated by the device at Dx1</td></tr>
+<tr><td>SNR</td><td>Signal-to-noise ratio of the radar measurement in the track</td></tr>
+<tr><td>GRT</td><td>Gordon's Reloading Tool; <code>.grtload</code> is its file format for loads with measurements</td></tr>
+<tr><td>COAL</td><td>Cartridge overall length</td></tr>
+<tr><td>Charge ladder</td><td>Series with a stepwise varied powder charge</td></tr>
+<tr><td>Seating depth</td><td>How deep the bullet sits in the case, or its distance to the lands, depending on the chosen reference</td></tr></table></section>
+</main></div></body></html>

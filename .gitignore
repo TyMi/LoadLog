@@ -1,0 +1,33 @@
+# Echte Messdaten und lokale Konfiguration (nie einchecken)
+/data/*
+!/data/examples/
+!/data/README.md
+*.local
+config.local.*
+.env
+.env.*
+!.env.example
+
+# Ausgaben
+/out/
+/output/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Node
+node_modules/
+
+# Editor / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

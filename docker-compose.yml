@@ -1,0 +1,20 @@
+services:
+  loadlog:
+    build: .
+    image: loadlog:local
+    ports:
+      - "${LOADLOG_BIND:-127.0.0.1}:${LOADLOG_PORT:-8080}:8080"
+    volumes:
+      - loadlog-data:/data
+    restart: unless-stopped
+    read_only: true
+    environment:
+      LOADLOG_ALLOWED_HOSTS: ${LOADLOG_ALLOWED_HOSTS:-}  # optional, kommagetrennt (Schutz vor DNS-Rebinding)
+    tmpfs:
+      - /tmp:size=640m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  loadlog-data:
