@@ -219,15 +219,19 @@ export function SettingsView() {
       <section class="panel col">
         <h2>{t("sysDisplay")}</h2>
         <div class="row">
-          <span class="flabel">{t("language")}</span>
-          <div class="seg" role="group" aria-label={t("language")}>
-            <button aria-pressed={lang === "de"} onClick={() => setLang("de")}>Deutsch</button>
-            <button aria-pressed={lang === "en"} onClick={() => setLang("en")}>English</button>
+          <div class="pair">
+            <span class="flabel">{t("language")}</span>
+            <div class="seg" role="group" aria-label={t("language")}>
+              <button aria-pressed={lang === "de"} onClick={() => setLang("de")}>Deutsch</button>
+              <button aria-pressed={lang === "en"} onClick={() => setLang("en")}>English</button>
+            </div>
           </div>
-          <span class="flabel">{t("units")}</span>
-          <div class="seg" role="group" aria-label={t("units")}>
-            <button aria-pressed={units === "si"} onClick={() => setUnits("si")}>m/s · J</button>
-            <button aria-pressed={units === "imp"} onClick={() => setUnits("imp")}>fps · ft-lbf</button>
+          <div class="pair">
+            <span class="flabel">{t("units")}</span>
+            <div class="seg" role="group" aria-label={t("units")}>
+              <button aria-pressed={units === "si"} onClick={() => setUnits("si")}>m/s · J</button>
+              <button aria-pressed={units === "imp"} onClick={() => setUnits("imp")}>fps · ft-lbf</button>
+            </div>
           </div>
         </div>
         <div class="muted small">{t("sysDisplayHint")}</div>
@@ -569,19 +573,19 @@ export function LoadView({ id }: { id: number | null }) {
               {series.length === 0 && <p class="muted">{t("none")}</p>}
               {series.length > 0 && (
                 <div style={{ overflowX: "auto" }}>
-                  <table>
+                  <table class="rt">
                     <thead><tr><th><span class="muted small">{t("selectSeries")}</span></th><th>{t("series")}</th><th class="n">{t("charge_gr")}</th><th class="n">{t("seating_depth_mm")}</th><th class="n">{t("shots")}</th><th class="n">Ø ({u.v})</th><th class="n">SD</th><th class="n">ES</th><th><span class="muted small">{t("removeHere")}</span></th></tr></thead>
                     <tbody>
                       {series.map((s) => (
                         <tr key={s.id}>
-                          <td><input type="checkbox" aria-label={`${t("selectSeries")} ${s.number}`} checked={picked.includes(s.id)} onChange={() => toggle(s.id)} style={{ width: 20, height: 20 }} /></td>
-                          <td><a href={`#/series/${s.id}`}>{seriesLabel(s, t("series"))}</a> <span class="muted small">{dateText(s.taken_at, lang)}</span></td>
-                          <td class="n">{fmt(s.charge_gr, 1, lang)}</td><td class="n">{fmt(s.seating_depth_mm, 2, lang)}</td>
-                          <td class="n">{s.stats.n}/{s.shots_total}</td>
-                          <td class="n">{fmt(s.stats.avg === null ? null : vOut(s.stats.avg, units), 1, lang)}</td>
-                          <td class="n">{fmt(s.stats.sd === null ? null : vOut(s.stats.sd, units), 1, lang)}</td>
-                          <td class="n">{fmt(s.stats.es === null ? null : vOut(s.stats.es, units), 1, lang)}</td>
-                          <td><button class="btn ghost" title={t("removeHereHint")} aria-label={`${t("removeHere")}: ${seriesLabel(s, t("series"))}`} onClick={() => unlink(s.id)}>×</button></td>
+                          <td class="c-sel"><input type="checkbox" aria-label={`${t("selectSeries")} ${s.number}`} checked={picked.includes(s.id)} onChange={() => toggle(s.id)} style={{ width: 20, height: 20 }} /></td>
+                          <td class="c-name"><a href={`#/series/${s.id}`}>{seriesLabel(s, t("series"))}</a> <span class="muted small">{dateText(s.taken_at, lang)}</span></td>
+                          <td class="n" data-label={t("charge_gr")}>{fmt(s.charge_gr, 1, lang)}</td><td class="n" data-label={t("seating_depth_mm")}>{fmt(s.seating_depth_mm, 2, lang)}</td>
+                          <td class="n" data-label={t("shots")}>{s.stats.n}/{s.shots_total}</td>
+                          <td class="n" data-label={`Ø (${u.v})`}>{fmt(s.stats.avg === null ? null : vOut(s.stats.avg, units), 1, lang)}</td>
+                          <td class="n" data-label="SD">{fmt(s.stats.sd === null ? null : vOut(s.stats.sd, units), 1, lang)}</td>
+                          <td class="n" data-label="ES">{fmt(s.stats.es === null ? null : vOut(s.stats.es, units), 1, lang)}</td>
+                          <td class="c-x"><button class="btn ghost" title={t("removeHereHint")} aria-label={`${t("removeHere")}: ${seriesLabel(s, t("series"))}`} onClick={() => unlink(s.id)}>×</button></td>
                         </tr>
                       ))}
                     </tbody>
@@ -710,18 +714,18 @@ export function SeriesView({ id }: { id: number }) {
         <section class="panel main" aria-label={t("shots")}>
           <h2>{t("shots")}</h2>
           <div style={{ overflowX: "auto" }}>
-            <table>
+            <table class="rt rt-shots">
               <thead><tr><th>#</th><th class="n">V0 ({u.v})</th><th class="n">{t("energyCol")} ({u.e})</th><th class="n">{t("impulseCol")}</th><th>{t("time")}</th><th>{t("signal")}</th><th>{t("status")}</th></tr></thead>
               <tbody>
                 {data.shots.map((s) => (
                   <tr key={s.number} class={`pickable ${s.number === sel ? "sel" : ""} ${s.excluded ? "ex" : ""}`} onClick={() => setSel(s.number)}>
-                    <td><button class="plain" onClick={() => setSel(s.number)} aria-label={`${t("shot")} ${s.number}`}>{s.number}</button></td>
-                    <td class="n v0">{fmt(vOut(s.v0_ms, units), 1, lang)}</td>
-                    <td class="n">{fmt(eOut(s.energy0_j, units), 0, lang)}</td>
-                    <td class="n">{fmt(s.mip, 0, lang)}</td>
-                    <td class="mono small">{s.taken_at.slice(11, 19)}</td>
-                    <td><Bars n={s.signal_strength} /></td>
-                    <td>
+                    <td class="c-num"><button class="plain" onClick={() => setSel(s.number)} aria-label={`${t("shot")} ${s.number}`}>{s.number}</button></td>
+                    <td class="n v0" data-label={`V0 (${u.v})`}>{fmt(vOut(s.v0_ms, units), 1, lang)}</td>
+                    <td class="n" data-label={`${t("energyCol")} (${u.e})`}>{fmt(eOut(s.energy0_j, units), 0, lang)}</td>
+                    <td class="n" data-label={t("impulseCol")}>{fmt(s.mip, 0, lang)}</td>
+                    <td class="mono small" data-label={t("time")}>{s.taken_at.slice(11, 19)}</td>
+                    <td data-label={t("signal")}><Bars n={s.signal_strength} /></td>
+                    <td class="c-status">
                       <button class="btn" style={{ minWidth: 130, justifyContent: "center" }} aria-pressed={s.excluded} onClick={(e) => { e.stopPropagation(); toggleShot(s.number, !s.excluded); }}>
                         {s.excluded ? t("excluded") : t("included")}
                       </button>
@@ -826,7 +830,7 @@ export function CompareView({ ids }: { ids: number[] }) {
         <SvgChart url={urls.compareChart(ids, { trend, lang, units })} />
       </section>
       <section class="panel" style={{ overflowX: "auto" }}>
-        <table>
+        <table class="rt">
           <thead><tr><th>{t("series")}</th><th class="n">{t("shots")}</th><th class="n">{t("charge_gr")}</th><th class="n">{t("seating_depth_mm")}</th><th class="n">Ø ({u.v})</th><th class="n">SD</th><th class="n">ES</th><th class="n">Δ Ø</th></tr></thead>
           <tbody>
             {data.map((s: SeriesDetail) => {
@@ -835,12 +839,12 @@ export function CompareView({ ids }: { ids: number[] }) {
               if (avg !== null) prev = avg;
               return (
                 <tr key={s.id}>
-                  <td><a href={`#/series/${s.id}`}>{seriesLabel(s, t("series"))}</a></td>
-                  <td class="n">{s.stats.n}/{s.shots_total}</td><td class="n">{fmt(s.charge_gr, 1, lang)}</td><td class="n">{fmt(s.seating_depth_mm, 2, lang)}</td>
-                  <td class="n">{fmt(avg, 1, lang)}</td>
-                  <td class="n">{fmt(s.stats.sd === null ? null : vOut(s.stats.sd, units), 1, lang)}</td>
-                  <td class="n">{fmt(s.stats.es === null ? null : vOut(s.stats.es, units), 1, lang)}</td>
-                  <td class="n">{delta === null ? "–" : `${delta >= 0 ? "+" : "−"}${fmt(Math.abs(delta), 1, lang)}`}</td>
+                  <td class="c-full"><a href={`#/series/${s.id}`}>{seriesLabel(s, t("series"))}</a></td>
+                  <td class="n" data-label={t("shots")}>{s.stats.n}/{s.shots_total}</td><td class="n" data-label={t("charge_gr")}>{fmt(s.charge_gr, 1, lang)}</td><td class="n" data-label={t("seating_depth_mm")}>{fmt(s.seating_depth_mm, 2, lang)}</td>
+                  <td class="n" data-label={`Ø (${u.v})`}>{fmt(avg, 1, lang)}</td>
+                  <td class="n" data-label="SD">{fmt(s.stats.sd === null ? null : vOut(s.stats.sd, units), 1, lang)}</td>
+                  <td class="n" data-label="ES">{fmt(s.stats.es === null ? null : vOut(s.stats.es, units), 1, lang)}</td>
+                  <td class="n" data-label="Δ Ø">{delta === null ? "–" : `${delta >= 0 ? "+" : "−"}${fmt(Math.abs(delta), 1, lang)}`}</td>
                 </tr>
               );
             })}
@@ -1040,12 +1044,12 @@ export function WeaponsView() {
       </section>
       <section class="panel">
         {data.length === 0 && <p class="muted">{t("none")}</p>}
-        <table>
+        <table class="wlist">
           <tbody>
             {data.map((w) => (
               <tr key={w.id}>
                 <td><strong>{w.name}</strong> <span class="muted small">{[w.caliber, w.barrel_length_mm ? `${w.barrel_length_mm} mm` : null, w.twist].filter(Boolean).join(" · ")}</span></td>
-                <td style={{ width: 200, textAlign: "right" }}>
+                <td class="acts">
                   <button class="btn" onClick={() => edit(w)}>{t("open")}</button>{" "}
                   <button class="btn danger" onClick={() => remove(w)}>{t("remove")}</button>
                 </td>

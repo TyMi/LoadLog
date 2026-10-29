@@ -147,6 +147,16 @@ describe("Serie: Laborierungen", () => {
     expect(text).not.toMatch(/349,6|340,2/);
   });
 
+  it("Schusstabelle trägt Beschriftungen an den Zellen (Kartenansicht auf dem Handy)", async () => {
+    const view = mount(<SeriesView id={7} />, { units: "si" });
+    await screen.findByText("Laborierungen dieser Serie");
+    const table = view.container.querySelector("table.rt-shots")!;
+    expect(table).toBeTruthy();
+    const labels = [...table.querySelectorAll("tbody tr:first-child td[data-label]")].map((td) => td.getAttribute("data-label"));
+    expect(labels).toEqual(expect.arrayContaining(["V0 (m/s)", "Energie (J)", "MIP", "Zeit", "Signal"]));
+    expect(table.querySelector("td.c-status button")).toBeTruthy(); // Schuss ausschließen bleibt erreichbar
+  });
+
   it("Exportlink verweist auf CSV mit Sprache und Einheiten", async () => {
     mount(<SeriesView id={7} />, { lang: "en", units: "imp" });
     const a = (await screen.findByText("CSV export")).closest("a")!;

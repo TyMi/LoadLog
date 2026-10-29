@@ -11,6 +11,12 @@ Laborierungs-**Journal** und Auswertung für Chronograph-Daten: importiert die S
 Ausreißer aus und zeigt Statistik, Impuls, Ballistischen Koeffizienten, Geschwindigkeitsverläufe, Serienvergleiche, Ladeleitern
 und Trends. Berichte als PDF, Export als CSV. Oberfläche und Handbuch auf Deutsch und Englisch.
 
+![Serienansicht mit Kennzahlen und Geschwindigkeitsverlauf](docs/img/series-de.png)
+
+![Serienvergleich mit Trendlinie](docs/manual/img/de/04-compare.png)
+
+<sub>Fiktive Beispieldaten.</sub>
+
 ### Abgrenzung: Journal, keine Laborierungsentwicklung
 
 LoadLog **legt ab und wertet aus, was du selbst geladen und gemessen hast**. Es ist **kein Werkzeug zur Entwicklung von Laborierungen**:
@@ -90,6 +96,12 @@ ist selbst für den Datenschutz verantwortlich.
 Load **journal** and evaluation for chronograph data: imports the SD card data of a **LabRadar** (unofficial, not affiliated with the
 manufacturer) as well as GRT files (`.grtload`), assigns series to loads, excludes outliers and shows statistics, impulse, ballistic
 coefficient, velocity tracks, series comparisons, charge ladders and trends. PDF reports, CSV export. UI and manual in German and English.
+
+![Series view with statistics and velocity tracks](docs/img/series-en.png)
+
+![Series comparison with trend line](docs/manual/img/en/04-compare.png)
+
+<sub>Fictional sample data.</sub>
 
 ### Scope: a journal, not load development
 
