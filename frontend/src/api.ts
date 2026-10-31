@@ -98,6 +98,7 @@ export interface SeriesDetail extends SeriesSummary {
 export interface ImportResult {
   imported: { id: number; number: number }[];
   skipped: number;
+  assigned?: number; // vorhandene Serien, die zusätzlich der Laborierung zugeordnet wurden
   warnings: (Note | string)[];
   load_id: number | null;
 }
@@ -157,10 +158,11 @@ export const api = {
   deleteSeries: (id: number) => req<void>("DELETE", `/api/series/${id}`),
   setExcluded: (id: number, n: number, excluded: boolean) =>
     req<SeriesDetail>("PUT", `/api/series/${id}/shots/${n}/excluded`, { excluded }),
-  async importZip(file: File, loadId?: number): Promise<ImportResult> {
+  async importZip(file: File, loadId?: number, assignExisting = false): Promise<ImportResult> {
     const form = new FormData();
     form.append("file", file);
-    const res = await fetch(`/api/import${loadId === undefined ? "" : `?load_id=${loadId}`}`, { method: "POST", body: form });
+    const query = loadId === undefined ? "" : `?load_id=${loadId}${assignExisting ? "&assign_existing=true" : ""}`;
+    const res = await fetch(`/api/import${query}`, { method: "POST", body: form });
     if (!res.ok) {
       const j = await res.json().catch(() => ({ detail: res.statusText }));
       throw new ApiError(res.status, formatDetail(j.detail));

@@ -415,6 +415,7 @@ function LoadImport({ loadId, onDone }: { loadId: number; onDone: () => void }) 
   const { t, lang } = useApp();
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
+  const [assignExisting, setAssignExisting] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   const folder = useRef<HTMLInputElement>(null);
   const upload = async (sources: Source[]) => {
@@ -422,8 +423,8 @@ function LoadImport({ loadId, onDone }: { loadId: number; onDone: () => void }) 
     if (usable.length === 0) return setMsg({ err: t("importNothing") });
     setBusy(true);
     setMsg({});
-    const r = await runImport(usable, loadId, undefined, (n) => `${n}: ${t("noLabradarFiles")}`);
-    const text = `${r.imported.length} ${t("importedInto")} · ${r.skipped} ${t("skippedN")}${r.warnings.length ? ` · ${r.warnings.map((w) => renderAny(w, lang)).join(" · ")}` : ""}`;
+    const r = await runImport(usable, loadId, undefined, (n) => `${n}: ${t("noLabradarFiles")}`, assignExisting);
+    const text = `${r.imported.length} ${t("importedInto")} · ${r.skipped} ${t("skippedN")}${assignExisting ? ` · ${r.assigned ?? 0} ${t("assignedExisting")}` : ""}${r.warnings.length ? ` · ${r.warnings.map((w) => renderAny(w, lang)).join(" · ")}` : ""}`;
     setMsg(r.errors.length ? { ok: r.imported.length ? text : undefined, err: r.errors.join(" · ") } : { ok: text });
     setBusy(false);
     onDone();
@@ -439,6 +440,10 @@ function LoadImport({ loadId, onDone }: { loadId: number; onDone: () => void }) 
       <input ref={folder} type="file" hidden {...{ webkitdirectory: true, directory: true }} onChange={pick} />
       <button class="btn" disabled={busy} onClick={() => input.current?.click()}>{busy ? t("importing") : `${t("importHereTitle")} …`}</button>
       <button class="btn" disabled={busy} onClick={() => folder.current?.click()}>{t("chooseFolder")}</button>
+      <label class="small" style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+        <input type="checkbox" checked={assignExisting} disabled={busy} onChange={(e) => setAssignExisting(e.currentTarget.checked)} />
+        {t("assignExistingLabel")}
+      </label>
       <span class="muted small grow">{t("importHereHint")}</span>
       {msg.ok && <span class="small" role="status">{msg.ok}</span>}
       {msg.err && <span class="small" role="alert" style={{ color: "var(--red, #ff8a80)" }}>{msg.err}</span>}

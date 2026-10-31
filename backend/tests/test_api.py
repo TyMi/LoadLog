@@ -122,7 +122,7 @@ def test_series_report_shows_date(client):
     taken = client.get(f"/api/series/{sid}").json()["shots"][0]["taken_at"][:10]
     y, m, d = taken.split("-")
     assert f"{d}.{m}.{y}" in client.get(f"/api/reports/series/{sid}?format=html&lang=de").text
-    assert taken in client.get(f"/api/reports/series/{sid}?format=html&lang=en").text
+    assert f"{d}/{m}/{y}" in client.get(f"/api/reports/series/{sid}?format=html&lang=en").text
 
 
 def test_series_report_shows_bc(client):
@@ -307,3 +307,33 @@ def test_grt_without_measurements_imports_the_load_only(client):
     assert r.status_code == 200 and body["imported"] == [] and [w["code"] for w in body["warnings"]] == ["grt_load_only"]
     load = client.get(f"/api/loads/{body['load_id']}").json()
     assert load["name"] == "Nur Kopf" and load["charge_gr"] == 40.12
+
+
+def test_import_into_load_can_assign_existing_series(client):
+    zip_bytes = synth.make_zip(seed=5)
+    first = client.post("/api/import", files={"file": ("s.zip", zip_bytes)}).json()
+    ids = [i["id"] for i in first["imported"]]
+    lid = client.post("/api/loads", json={"name": "L"}).json()["id"]
+
+    plain = client.post(f"/api/import?load_id={lid}", files={"file": ("s.zip", zip_bytes)}).json()
+    assert plain["imported"] == [] and plain["assigned"] == 0 and plain["skipped"] == len(ids)  # bisheriges Verhalten
+    assert client.get(f"/api/loads/{lid}").json()["series"] == []
+
+    r = client.post(f"/api/import?load_id={lid}&assign_existing=true", files={"file": ("s.zip", zip_bytes)}).json()
+    assert r["imported"] == [] and r["assigned"] == len(ids)
+    assert [w["code"] for w in r["warnings"]] == ["assigned_existing"] * len(ids)
+    assert sorted(s["id"] for s in client.get(f"/api/loads/{lid}").json()["series"]) == sorted(ids)
+
+    again = client.post(f"/api/import?load_id={lid}&assign_existing=true", files={"file": ("s.zip", zip_bytes)}).json()
+    assert again["assigned"] == 0 and [w["code"] for w in again["warnings"]] == []  # schon dort: nichts zu melden
+
+
+def test_assigning_existing_grt_series_keeps_other_loads(client):
+    grt = synth.make_grtload()
+    first = client.post("/api/import", files={"file": ("x.grtload", grt)}).json()
+    src_load = first["load_id"]
+    other = client.post("/api/loads", json={"name": "Ziel"}).json()["id"]
+    r = client.post(f"/api/import?load_id={other}&assign_existing=true", files={"file": ("x.grtload", grt)}).json()
+    assert r["assigned"] == len(first["imported"]) and r["imported"] == []
+    sid = first["imported"][0]["id"]
+    assert sorted(client.get(f"/api/series/{sid}").json()["load_ids"]) == sorted([src_load, other])  # Mehrfachzuordnung

@@ -54,7 +54,7 @@ Fehler: `{"detail": {"code", "message", "params"}}` (Meldungscodes in `messages.
 | Laborierungen | `GET/POST /api/loads`, `GET/PUT/DELETE /api/loads/{id}` | Laborierungen verwalten |
 | | `POST /api/loads/{id}/apply-weight[?clear=true]` | Geschossgewicht auf alle Serien anwenden oder die Überschreibung entfernen |
 | | `GET /api/loads/{id}/ladder?by=charge\|seating` | Datenpunkte der Ladeleiter bzw. des Setztiefen-Tests |
-| Import | `POST /api/import[?load_id=]` | SD-Karten-ZIP oder GRT-Datei (Multipart-Feld `file`) |
+| Import | `POST /api/import[?load_id=&assign_existing=true]` | SD-Karten-ZIP oder GRT-Datei (Multipart-Feld `file`); `assign_existing` legt bereits vorhandene Serien zusätzlich in die Laborierung |
 | Serien | `GET /api/series[?unassigned=true&load_id=]` | Liste mit Filter (nicht zugeordnet, einer Laborierung) |
 | | `GET/PATCH/DELETE /api/series/{id}` | Serie mit Schüssen, Laborierungen und BC lesen, ändern, löschen |
 | | `PUT/DELETE /api/series/{id}/loads/{lid}` | Mehrfachzuordnung: Serie zusätzlich in eine Laborierung legen oder herausnehmen |
