@@ -37,6 +37,30 @@ def _inputs(section: ET.Element | None) -> dict[str, str]:
     return {i.get("name", ""): unquote(i.get("value", "")) for i in section.findall("input")} if section is not None else {}
 
 
+_TO_GRAM = {"g": 1.0, "kg": 1000.0, "mg": 0.001, "gr": GRAMS_PER_GRAIN}
+_TO_CELSIUS = {"cel": lambda v: v, "degc": lambda v: v, "°c": lambda v: v, "c": lambda v: v,
+               "k": lambda v: v - 273.15, "degf": lambda v: (v - 32) / 1.8, "f": lambda v: (v - 32) / 1.8}
+
+
+def _quantity(section: ET.Element | None, name: str) -> tuple[float | None, str]:
+    """Wert und Einheit (kleingeschrieben) eines `input`-Elements; (None, "") wenn es fehlt."""
+    if section is not None:
+        for i in section.findall("input"):
+            if i.get("name") == name:
+                return _num(unquote(i.get("value", ""))), (i.get("unit") or "").strip().lower()
+    return None, ""
+
+
+def _grains(section: ET.Element | None, name: str) -> float | None:
+    v, unit = _quantity(section, name)
+    return v * _TO_GRAM[unit] / GRAMS_PER_GRAIN if v is not None and unit in _TO_GRAM else None
+
+
+def _celsius(section: ET.Element | None, name: str) -> float | None:
+    v, unit = _quantity(section, name)
+    return _TO_CELSIUS[unit](v) if v is not None and unit in _TO_CELSIUS else None
+
+
 def _num(text: str | None) -> float | None:
     try:
         x = float(text) if text not in (None, "") else None
@@ -61,11 +85,16 @@ def looks_like_grt(data: bytes) -> bool:
 def _load_header(root: ET.Element) -> dict:
     proj, prop, cal = (_inputs(root.find(s)) for s in ("projectile", "propellant", "caliber"))
     gun = _inputs(root.find("gun"))
+    propellant = root.find("propellant")
     bullet_g = _num(proj.get("mp"))
     notes = [f"Kaliber: {cal['CaliberName']}"] if cal.get("CaliberName") else []
     if (barrel := _num(gun.get("xe"))) and barrel > 0:
         notes.append(f"Lauflänge: {barrel:g} mm")
+    steps, step_gr = _num(prop.get("laddercnt")), _grains(propellant, "laddermc")
+    if steps and steps > 1 and step_gr:
+        notes.append(f"Leiter: {steps:g} Stufen à {step_gr:.2f} gr")
     notes.append("Importiert aus GRT")
+    charge_gr, temp_c = _grains(propellant, "mc"), _celsius(propellant, "pt")
     load = {
         "name": unquote(root.findtext("title") or "GRT-Import").strip()[:200] or "GRT-Import",
         "powder_maker": prop.get("mname") or None,
@@ -75,6 +104,8 @@ def _load_header(root: ET.Element) -> dict:
         "bullet_type": proj.get("pname") or None,
         "bullet_weight_gr": round(bullet_g / GRAMS_PER_GRAIN, 2) if bullet_g else None,
         "bullet_lot": proj.get("lotid") or None,
+        "charge_gr": round(charge_gr, 2) if charge_gr and 0 < charge_gr <= 500 else None,
+        "temperature_c": round(temp_c, 1) if temp_c is not None and -60 <= temp_c <= 80 else None,
         "coal_mm": round(oal, 2) if (oal := _num(cal.get("oal"))) else None,
         "seating_depth_mm": round(depth, 2) if (depth := _num(proj.get("gdepth"))) else None,
         "notes": "\n".join(notes),
@@ -147,15 +178,34 @@ def parse_grtload(data: bytes) -> GrtImport:
     if root.tag != "GordonsReloadingTool" or base is None:
         raise GrtError("grt_not_grt")
     weight_g = _num(_inputs(base.find("projectile")).get("mp")) or 0.0
+    if not any(_inputs(base.find(sec)) for sec in ("projectile", "propellant", "caliber")) and base.find("appendix/Measurement") is None:
+        raise GrtError("grt_no_series")  # weder Kopfdaten noch Messungen: nichts zu importieren
     result = GrtImport(load=_load_header(base))
     measurement = base.find("appendix/Measurement")
-    for el in measurement.findall("charge") if measurement is not None else []:
+    charges = measurement.findall("charge") if measurement is not None else []
+    for el in charges:
         if s := _series(el, weight_g, result.warnings):
             result.series.append(s)
     if not result.series:
-        raise GrtError("grt_no_series")
+        if charges:
+            raise GrtError("grt_no_series")
+        steps = _num(_inputs(base.find("propellant")).get("laddercnt"))
+        result.load["trial_type"] = "ladder" if steps and steps > 1 else "single"
+        result.warnings.append(Note("grt_load_only"))  # Kopfdaten ohne Chronographen-Messung: nur die Laborierung wird angelegt
+        return result
+    _number_repeated_names(result.series)
     if not weight_g:
         result.warnings.append(Note("grt_weight_missing"))
-    charges = {s.charge_gr for s in result.series if s.charge_gr}
-    result.load["trial_type"] = "ladder" if len(charges) > 1 else "single"
+    charge_values = {s.charge_gr for s in result.series if s.charge_gr}
+    result.load["trial_type"] = "ladder" if len(charge_values) > 1 else "single"
     return result
+
+
+def _number_repeated_names(series: list[Series]) -> None:
+    """Mehrere Messgruppen mit gleichem Namen (z. B. zweimal "Series 15") werden unterscheidbar: "Series 15 (2)" usw."""
+    seen: dict[tuple, int] = {}
+    for s in series:
+        key = (s.number, s.name)
+        seen[key] = seen.get(key, 0) + 1
+        if seen[key] > 1:
+            s.name = f"{s.name or f'Series {s.number}'} ({seen[key]})"

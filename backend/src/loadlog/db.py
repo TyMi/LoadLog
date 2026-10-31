@@ -258,7 +258,7 @@ class Database:
                 raise NotFound(f"loads {load_id}")
             known = [c.execute("SELECT 1 FROM series WHERE source_key = ?", (self.source_key(s),)).fetchone() is not None
                      or self._match(c, s) is not None for s in series]
-            if load_data is not None and load_id is None and not all(known):
+            if load_data is not None and load_id is None and (not series or not all(known)):  # ohne Serien: nur die Laborierung
                 values = self._pick(load_data, LOAD_FIELDS)
                 values["created_at"] = datetime.now().isoformat(timespec="seconds")
                 cols, marks = ", ".join(values), ", ".join("?" for _ in values)

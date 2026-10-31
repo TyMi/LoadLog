@@ -217,8 +217,8 @@ def test_series_can_be_named(client):
 
 def test_grt_import_keeps_custom_series_name(client):
     j = client.post("/api/import", files={"file": ("x.grtload", synth.make_grtload())}).json()
-    names = {s["number"]: s["name"] for s in client.get(f"/api/loads/{j['load_id']}").json()["series"]}
-    assert names[0] == "Handnotiz" and names[1] is None
+    names = [s["name"] for s in client.get(f"/api/loads/{j['load_id']}").json()["series"]]
+    assert "Handnotiz" in names and None in names and "Series 1 (2)" in names
 
 
 def test_bc_uses_track_when_few_distances(client):
@@ -293,3 +293,17 @@ def test_delete_unassigned_series_and_reimport(client):
     assert client.get(f"/api/series/{ids[0]}").status_code == 404
     j = upload(client).json()
     assert len(j["imported"]) == 2 and j["skipped"] == 1  # gelöschte lassen sich neu einlesen, die übrige bleibt
+
+
+def test_grt_without_measurements_imports_the_load_only(client):
+    data = (
+        b'<?xml version="1.0"?><GordonsReloadingTool><InnerBallistikInput><title>Nur Kopf</title>'
+        b'<projectile><input name="mp" value="10" unit="g" type="decimal"/></projectile>'
+        b'<propellant><input name="mc" value="2.6" unit="g" type="decimal"/></propellant>'
+        b"</InnerBallistikInput></GordonsReloadingTool>"
+    )
+    r = client.post("/api/import", files={"file": ("k.grtload", data)})
+    body = r.json()
+    assert r.status_code == 200 and body["imported"] == [] and [w["code"] for w in body["warnings"]] == ["grt_load_only"]
+    load = client.get(f"/api/loads/{body['load_id']}").json()
+    assert load["name"] == "Nur Kopf" and load["charge_gr"] == 40.12
