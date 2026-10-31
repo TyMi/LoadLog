@@ -2,6 +2,10 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.4
+
+- **Handbuch:** Im Abschnitt Ladeleitern und Setztiefen steht ausdrücklich, dass alle Werte in den Beispielen und Screenshots erfunden und keine Ladedaten sind (Deutsch und Englisch).
+
 ## 0.0.3
 
 - **CI:** Zusätzlicher Job `docker-arm64`: Docker-Build und Smoketest auf einem ARM64-Runner (Raspberry Pi, Docker auf Apple Silicon, ARM-NAS). Der Job ist kein Pflicht-Check für Pull Requests.
