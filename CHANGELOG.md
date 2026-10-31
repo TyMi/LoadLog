@@ -5,6 +5,7 @@ Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöh
 ## 0.0.13
 
 - **Energie über Distanz:** Neues Diagramm in der Serienansicht und im PDF-Bericht der Serie: mittlere Energie an der Mündung und an den Messdistanzen mit ±1 SD und Werten an den Punkten (ausgeschlossene Schüsse zählen nicht; Achse an die Daten angepasst). Schnittstelle `GET /api/charts/series/{id}/energy.svg`.
+- **Handbuch:** Der Hinweis zum Doppler-Trigger ist ergänzt: Bei normalem Betrieb (Trigger intern oder extern) rechnet LabRadar V0 auf die Mündung zurück; der Doppler-Modus ist laut LabRadar-Handbuch nur für große, langsame Geschosse gedacht, nicht für Schusswaffen.
 
 ## 0.0.12
 

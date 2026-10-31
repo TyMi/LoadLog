@@ -48,7 +48,8 @@ docker compose up -d --build</code></pre>
 <ul><li>The <code>.lbr</code> files (full precision, signal strength) and the track files (velocity over distance) are read. If an <code>.lbr</code> is missing, LoadLog uses the rounded values from <code>Report.csv</code>.</li>
 <li>The measuring distances set on the device (Dx1 to Dx5) are detected automatically.</li>
 <li>GRT files contain V0 and the velocities rounded to 1 m/s, plus the track. Signal strength and device number are missing. Defective or implausible shots are discarded and reported as a note.</li></ul>
-<div class="note">In <strong>Doppler trigger</strong> mode, V0 is the velocity when the bullet enters the radar beam, not at the muzzle. You can record the trigger used per series; the file itself does not contain it.</div></section>
+<div class="note">In <strong>Doppler trigger</strong> mode, V0 is the velocity when the bullet enters the radar beam, not at the muzzle. You can record the trigger used per series; the file itself does not contain it.</div>
+<div class="note">In normal operation (trigger <em>Internal</em> or external) LabRadar extrapolates V0 back to the muzzle from the measured values; V0 is then the muzzle velocity. According to the LabRadar manual, the Doppler mode is intended only for large, slow projectiles and not for firearms, because it affects the precision of the measurement.</div></section>
 <section id="loads"><h2>Loads</h2><p>A <strong>load</strong> summarises what you loaded. Choose <em>New load</em> and fill in what you want to record; all fields except the name are optional.</p>
 <h3>Overview</h3>
 <p>At the top right you choose the display: <em>Cards</em> or <em>List</em>, and whether the loads are grouped <em>by firearm</em>. The choice is remembered in the browser. The <em>Search</em> field finds loads by name, powder, bullet, firearm, case, primer and note (all words must occur); the status filter shows only loads with a given <em>status</em>.</p>
