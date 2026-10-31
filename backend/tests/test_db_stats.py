@@ -60,10 +60,13 @@ def test_load_crud_and_assignment(db, imported):
         db.get_weapon(w)
 
 
-def test_delete_series_cascades_shots(db, imported):
+def test_delete_series_moves_to_trash_and_purge_cascades_shots(db, imported):
     db.delete_series(imported[0])
     with pytest.raises(NotFound):
         db.get_series(imported[0])
+    with db.conn() as c:  # im Papierkorb bleiben die Schüsse erhalten
+        assert c.execute("SELECT COUNT(*) FROM shots WHERE series_id = ?", (imported[0],)).fetchone()[0] > 0
+    db.purge("series", imported[0])
     with db.conn() as c:
         assert c.execute("SELECT COUNT(*) FROM shots WHERE series_id = ?", (imported[0],)).fetchone()[0] == 0
 

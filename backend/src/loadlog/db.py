@@ -13,7 +13,7 @@ from pathlib import Path
 from .messages import CodedError
 from .models import Series, Shot, TrackPoint
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 TRIAL_TYPES = ("single", "ladder", "seating")
 LOAD_STATUS = ("draft", "testing", "validated", "retired")  # Entwurf, in Prüfung, bewährt, ausgemustert; leer = ohne Angabe
@@ -40,13 +40,14 @@ CREATE TABLE loads (
   bullet_maker TEXT, bullet_type TEXT, bullet_weight_gr REAL, bullet_lot TEXT,
   coal_mm REAL, seating_depth_mm REAL, seating_ref TEXT, crimp TEXT,
   temperature_c REAL, notes TEXT, created_at TEXT NOT NULL,
-  status TEXT, parent_id INTEGER REFERENCES loads(id) ON DELETE SET NULL
+  status TEXT, parent_id INTEGER REFERENCES loads(id) ON DELETE SET NULL,
+  deleted_at TEXT
 );
 CREATE TABLE series (
   id INTEGER PRIMARY KEY,
   number INTEGER NOT NULL, name TEXT, weight_override_g REAL, device_id TEXT, source_key TEXT NOT NULL UNIQUE,
   charge_gr REAL, seating_depth_mm REAL, note TEXT, trigger_mode TEXT, imported_at TEXT NOT NULL,
-  group_text TEXT
+  group_text TEXT, deleted_at TEXT
 );
 CREATE TABLE shots (
   id INTEGER PRIMARY KEY, series_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
@@ -135,6 +136,10 @@ class Database:
                     c.execute("ALTER TABLE loads ADD COLUMN parent_id INTEGER REFERENCES loads(id) ON DELETE SET NULL")
                 if "group_text" not in {r[1] for r in c.execute("PRAGMA table_info(series)")}:
                     c.execute("ALTER TABLE series ADD COLUMN group_text TEXT")
+            if version < 6:  # Papierkorb: gelöschte Serien und Laborierungen bleiben mit Zeitstempel erhalten
+                for table in ("loads", "series"):
+                    if "deleted_at" not in {r[1] for r in c.execute(f"PRAGMA table_info({table})")}:  # noqa: S608
+                        c.execute(f"ALTER TABLE {table} ADD COLUMN deleted_at TEXT")  # noqa: S608
             c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     @staticmethod
@@ -197,13 +202,18 @@ class Database:
             return
         sets = ", ".join(f"{k} = ?" for k in values)
         with self.conn() as c:
-            cur = c.execute(f"UPDATE {table} SET {sets} WHERE id = ?", [*values.values(), row_id])  # noqa: S608
+            cur = c.execute(f"UPDATE {table} SET {sets} WHERE id = ?{self._live(table)}", [*values.values(), row_id])  # noqa: S608
             if cur.rowcount == 0:
                 raise NotFound(f"{table} {row_id}")
 
+    @staticmethod
+    def _live(table: str) -> str:
+        """Bedingung "nicht im Papierkorb" für Tabellen mit Papierkorb (Laborierungen, Serien)."""
+        return " AND deleted_at IS NULL" if table in ("loads", "series") else ""
+
     def _get(self, table: str, row_id: int) -> dict:
         with self.conn() as c:
-            row = c.execute(f"SELECT * FROM {table} WHERE id = ?", (row_id,)).fetchone()  # noqa: S608
+            row = c.execute(f"SELECT * FROM {table} WHERE id = ?{self._live(table)}", (row_id,)).fetchone()  # noqa: S608
         if row is None:
             raise NotFound(f"{table} {row_id}")
         return dict(row)
@@ -249,12 +259,12 @@ class Database:
     def load_family(self, load_id: int) -> tuple[dict | None, list[dict]]:
         """Ursprung (falls vorhanden) und abgeleitete Varianten einer Laborierung."""
         with self.conn() as c:
-            row = c.execute("SELECT parent_id FROM loads WHERE id = ?", (load_id,)).fetchone()
+            row = c.execute("SELECT parent_id FROM loads WHERE id = ? AND deleted_at IS NULL", (load_id,)).fetchone()
             parent = None
             if row and row["parent_id"] is not None:
-                p = c.execute("SELECT id, name, status FROM loads WHERE id = ?", (row["parent_id"],)).fetchone()
+                p = c.execute("SELECT id, name, status FROM loads WHERE id = ? AND deleted_at IS NULL", (row["parent_id"],)).fetchone()
                 parent = dict(p) if p else None
-            kids = [dict(r) for r in c.execute("SELECT id, name, status FROM loads WHERE parent_id = ? ORDER BY name COLLATE NOCASE", (load_id,))]
+            kids = [dict(r) for r in c.execute("SELECT id, name, status FROM loads WHERE parent_id = ? AND deleted_at IS NULL ORDER BY name COLLATE NOCASE", (load_id,))]
         return parent, kids
 
     def update_load(self, load_id: int, data: dict) -> None:
@@ -264,11 +274,12 @@ class Database:
         return self._get("loads", load_id)
 
     def delete_load(self, load_id: int) -> None:
-        self._delete("loads", load_id)
+        """Verschiebt die Laborierung in den Papierkorb; ihre Serien bleiben und gelten als nicht zugeordnet."""
+        self._trash("loads", load_id)
 
     def list_loads(self) -> list[dict]:
         with self.conn() as c:
-            return [dict(r) for r in c.execute("SELECT * FROM loads ORDER BY name COLLATE NOCASE")]
+            return [dict(r) for r in c.execute("SELECT * FROM loads WHERE deleted_at IS NULL ORDER BY name COLLATE NOCASE")]
 
     # ---- Serien und Schüsse ----
     @staticmethod
@@ -288,9 +299,9 @@ class Database:
         `events` sammelt (art, serie, vorhandene_id) für erkannte Duplikate ("duplicate"), aufgewertete ("upgraded") und, mit
         `assign_existing`, bereits vorhandene Serien, die der Laborierung zugeordnet wurden ("assigned")."""
         with self.conn() as c:
-            if load_id is not None and c.execute("SELECT 1 FROM loads WHERE id = ?", (load_id,)).fetchone() is None:
+            if load_id is not None and c.execute("SELECT 1 FROM loads WHERE id = ? AND deleted_at IS NULL", (load_id,)).fetchone() is None:
                 raise NotFound(f"loads {load_id}")
-            known = [c.execute("SELECT 1 FROM series WHERE source_key = ?", (self.source_key(s),)).fetchone() is not None
+            known = [c.execute("SELECT 1 FROM series WHERE source_key = ? AND deleted_at IS NULL", (self.source_key(s),)).fetchone() is not None
                      or self._match(c, s) is not None for s in series]
             if load_data is not None and load_id is None and (not series or not all(known)):  # ohne Serien: nur die Laborierung
                 values = self._pick(load_data, LOAD_FIELDS)
@@ -311,7 +322,7 @@ class Database:
         first = min(s.taken_at for s in series.shots)
         lo, hi = (first - timedelta(seconds=self.DUP_SECONDS)).isoformat(), (first + timedelta(seconds=self.DUP_SECONDS)).isoformat()
         cands = c.execute(
-            "SELECT s.id, s.device_id FROM series s WHERE s.id IN (SELECT series_id FROM shots WHERE taken_at BETWEEN ? AND ?)"
+            "SELECT s.id, s.device_id FROM series s WHERE s.deleted_at IS NULL AND s.id IN (SELECT series_id FROM shots WHERE taken_at BETWEEN ? AND ?)"
             " AND (SELECT COUNT(*) FROM shots WHERE series_id = s.id) = ?", (lo, hi, len(series.shots))).fetchall()
         mine = [s.v0_ms for s in sorted(series.shots, key=lambda x: x.number)]
         for cand in cands:
@@ -330,7 +341,10 @@ class Database:
     def _save_series(self, c: sqlite3.Connection, series: Series, load_id: int | None,
                      events: list | None = None, assign_existing: bool = False) -> tuple[int, bool]:
         key = self.source_key(series)
-        row = c.execute("SELECT id FROM series WHERE source_key = ?", (key,)).fetchone()
+        row = c.execute("SELECT id, deleted_at FROM series WHERE source_key = ?", (key,)).fetchone()
+        if row and row["deleted_at"] is not None:  # derselbe Import nach dem Löschen: die Kopie im Papierkorb weicht dem neuen Import
+            c.execute("DELETE FROM series WHERE id = ?", (row["id"],))
+            row = None
         if row:
             if assign_existing and self._assign(c, int(row["id"]), load_id) and events is not None:
                 events.append(("assigned", series, int(row["id"])))
@@ -398,13 +412,14 @@ class Database:
 
     def get_series(self, series_id: int, with_track: bool = False) -> SeriesRecord:
         with self.conn() as c:
-            row = c.execute("SELECT * FROM series WHERE id = ?", (series_id,)).fetchone()
+            row = c.execute("SELECT * FROM series WHERE id = ? AND deleted_at IS NULL", (series_id,)).fetchone()
             if row is None:
                 raise NotFound(f"series {series_id}")
             shots = [self._shot(r, with_track) for r in
                      c.execute("SELECT * FROM shots WHERE series_id = ? ORDER BY number", (series_id,))]
             load_ids = [r["load_id"] for r in
-                        c.execute("SELECT load_id FROM series_loads WHERE series_id = ? ORDER BY rowid", (series_id,))]
+                        c.execute("SELECT sl.load_id FROM series_loads sl JOIN loads l ON l.id = sl.load_id"
+                                  " WHERE sl.series_id = ? AND l.deleted_at IS NULL ORDER BY sl.rowid", (series_id,))]
         measured = shots[0].weight_g if shots else None
         if row["weight_override_g"]:  # Gewicht und davon abhängige Energie neu rechnen; die Messdaten bleiben unverändert
             m = row["weight_override_g"] / 1000
@@ -423,11 +438,12 @@ class Database:
         )
 
     def list_series_ids(self, load_id: int | None = None, unassigned: bool = False) -> list[int]:
-        sql, args = "SELECT id FROM series", []
+        sql, args = "SELECT id FROM series WHERE deleted_at IS NULL", []
         if unassigned:
-            sql += " WHERE NOT EXISTS (SELECT 1 FROM series_loads WHERE series_id = series.id)"
+            sql += (" AND NOT EXISTS (SELECT 1 FROM series_loads sl JOIN loads l ON l.id = sl.load_id"
+                    " WHERE sl.series_id = series.id AND l.deleted_at IS NULL)")
         elif load_id is not None:
-            sql += " WHERE id IN (SELECT series_id FROM series_loads WHERE load_id = ?)"
+            sql += " AND id IN (SELECT series_id FROM series_loads WHERE load_id = ?)"
             args.append(load_id)
         sql += " ORDER BY (SELECT MIN(taken_at) FROM shots WHERE series_id = series.id), number"
         with self.conn() as c:
@@ -440,14 +456,14 @@ class Database:
         with self.conn() as c:
             if values:
                 sets = ", ".join(f"{k} = ?" for k in values)
-                if c.execute(f"UPDATE series SET {sets} WHERE id = ?", [*values.values(), series_id]).rowcount == 0:  # noqa: S608
+                if c.execute(f"UPDATE series SET {sets} WHERE id = ? AND deleted_at IS NULL", [*values.values(), series_id]).rowcount == 0:  # noqa: S608
                     raise NotFound(f"series {series_id}")
-            elif c.execute("SELECT 1 FROM series WHERE id = ?", (series_id,)).fetchone() is None:
+            elif c.execute("SELECT 1 FROM series WHERE id = ? AND deleted_at IS NULL", (series_id,)).fetchone() is None:
                 raise NotFound(f"series {series_id}")
             if load_ids is not None:
                 wanted = list(dict.fromkeys(load_ids))
                 for lid in wanted:
-                    if c.execute("SELECT 1 FROM loads WHERE id = ?", (lid,)).fetchone() is None:
+                    if c.execute("SELECT 1 FROM loads WHERE id = ? AND deleted_at IS NULL", (lid,)).fetchone() is None:
                         raise NotFound(f"loads {lid}")
                 have = [r["load_id"] for r in c.execute("SELECT load_id FROM series_loads WHERE series_id = ?", (series_id,))]
                 for lid in have:
@@ -460,16 +476,17 @@ class Database:
     def set_weight_override_for_load(self, load_id: int, weight_g: float | None) -> int:
         """Setzt (oder löscht mit None) das Überschreib-Gewicht aller Serien der Laborierung in einer Anweisung; liefert die Anzahl."""
         with self.conn() as c:
-            if c.execute("SELECT 1 FROM loads WHERE id = ?", (load_id,)).fetchone() is None:
+            if c.execute("SELECT 1 FROM loads WHERE id = ? AND deleted_at IS NULL", (load_id,)).fetchone() is None:
                 raise NotFound(f"loads {load_id}")
-            return c.execute("UPDATE series SET weight_override_g = ? WHERE id IN (SELECT series_id FROM series_loads WHERE load_id = ?)",
+            return c.execute("UPDATE series SET weight_override_g = ? WHERE deleted_at IS NULL"
+                             " AND id IN (SELECT series_id FROM series_loads WHERE load_id = ?)",
                              (weight_g, load_id)).rowcount
 
     def add_series_to_load(self, series_id: int, load_id: int) -> None:
         """Legt die Serie zusätzlich in die Laborierung (bestehende Zuordnungen bleiben; doppelt ist harmlos)."""
         with self.conn() as c:
             for table, rid in (("series", series_id), ("loads", load_id)):
-                if c.execute(f"SELECT 1 FROM {table} WHERE id = ?", (rid,)).fetchone() is None:  # noqa: S608
+                if c.execute(f"SELECT 1 FROM {table} WHERE id = ?{self._live(table)}", (rid,)).fetchone() is None:  # noqa: S608
                     raise NotFound(f"{table} {rid}")
             c.execute("INSERT OR IGNORE INTO series_loads (series_id, load_id) VALUES (?, ?)", (series_id, load_id))
 
@@ -480,12 +497,59 @@ class Database:
                 raise NotFound(f"series {series_id} in loads {load_id}")
 
     def delete_series(self, series_id: int) -> None:
-        self._delete("series", series_id)
+        """Verschiebt die Serie samt Schüssen in den Papierkorb (Zuordnungen bleiben für das Wiederherstellen erhalten)."""
+        self._trash("series", series_id)
+
+    # ---- Papierkorb ----
+    def _trash(self, table: str, row_id: int) -> None:
+        with self.conn() as c:
+            cur = c.execute(f"UPDATE {table} SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",  # noqa: S608
+                            (datetime.now().isoformat(timespec="seconds"), row_id))
+            if cur.rowcount == 0:
+                raise NotFound(f"{table} {row_id}")
+
+    def list_trash(self) -> dict:
+        """Gelöschte Serien und Laborierungen, zuletzt gelöschte zuerst."""
+        with self.conn() as c:
+            series = [dict(r) for r in c.execute(
+                "SELECT s.id, s.number, s.name, s.deleted_at, (SELECT COUNT(*) FROM shots WHERE series_id = s.id) AS shots_total,"
+                " (SELECT MIN(taken_at) FROM shots WHERE series_id = s.id) AS taken_at FROM series s"
+                " WHERE s.deleted_at IS NOT NULL ORDER BY s.deleted_at DESC, s.id DESC")]
+            loads = [dict(r) for r in c.execute(
+                "SELECT l.id, l.name, l.status, l.deleted_at, (SELECT COUNT(*) FROM series_loads sl JOIN series s ON s.id = sl.series_id"
+                " WHERE sl.load_id = l.id AND s.deleted_at IS NULL) AS series_count FROM loads l"
+                " WHERE l.deleted_at IS NOT NULL ORDER BY l.deleted_at DESC, l.id DESC")]
+        return {"series": series, "loads": loads}
+
+    def restore_from_trash(self, table: str, row_id: int) -> None:
+        if table not in ("series", "loads"):
+            raise ValueError(table)
+        with self.conn() as c:
+            if c.execute(f"UPDATE {table} SET deleted_at = NULL WHERE id = ? AND deleted_at IS NOT NULL", (row_id,)).rowcount == 0:  # noqa: S608
+                raise NotFound(f"{table} {row_id} im Papierkorb")
+
+    def purge(self, table: str | None = None, row_id: int | None = None) -> dict:
+        """Löscht Einträge im Papierkorb endgültig: einen (table, row_id) oder alle (ohne Angaben). Liefert die Anzahl je Art."""
+        if table is not None and table not in ("series", "loads"):
+            raise ValueError(table)
+        out = {"series": 0, "loads": 0}
+        with self.conn() as c:
+            for t in ("series", "loads") if table is None else (table,):
+                sql = f"DELETE FROM {t} WHERE deleted_at IS NOT NULL"  # noqa: S608
+                args: tuple = ()
+                if row_id is not None:
+                    sql += " AND id = ?"
+                    args = (row_id,)
+                out[t] = c.execute(sql, args).rowcount
+            if table is not None and row_id is not None and out[table] == 0:
+                raise NotFound(f"{table} {row_id} im Papierkorb")
+        return out
 
     def set_shot_excluded(self, series_id: int, shot_number: int, excluded: bool) -> None:
         with self.conn() as c:
             cur = c.execute(
-                "UPDATE shots SET excluded = ? WHERE series_id = ? AND number = ?",
+                "UPDATE shots SET excluded = ? WHERE series_id = ? AND number = ?"
+                " AND series_id IN (SELECT id FROM series WHERE deleted_at IS NULL)",
                 (int(excluded), series_id, shot_number),
             )
             if cur.rowcount == 0:

@@ -10,7 +10,7 @@ Daten: eine SQLite-Datei im Volume `/data`.
 `series` (importiert, eigener Name, Pulvermenge/Setztiefe, Trigger-Modus, Notiz, Gruppengröße als Freitext, optionales Überschreib-Gewicht) ·
 `series_loads` (n:m: eine Serie kann in mehreren Laborierungen liegen; ohne Eintrag = nicht zugeordnet) ·
 `shots` (V0, V/E je Distanz als JSON, Signalstärke, `excluded`, Track als JSON). Alles in SI (m/s, m, J, g);
-Umrechnung nur bei der Anzeige. Schema-Version in `PRAGMA user_version` (aktuell 5), Migrationen in `Database._migrate`;
+Umrechnung nur bei der Anzeige. Schema-Version in `PRAGMA user_version` (aktuell 6), Migrationen in `Database._migrate`;
 `series.load_id` ist nur noch Altlast aus Schema ≤ 3.
 Duplikate: `source_key = Geräte-ID:Serien-Nr:erster Zeitstempel`, zusätzlich Abgleich über erster Schuss (±2 s), Schusszahl und V0
 (SD-Karte nach GRT wertet auf, GRT nach SD wird übersprungen). Löschen einer Laborierung entfernt nur die Verknüpfungen,
@@ -25,6 +25,9 @@ Löschen einer Serie löscht ihre Schüsse. Import einer Quelle: eine Transaktio
 - **Statistik serverseitig** (`stats.py`, ohne ausgeschlossene Schüsse, SD mit n−1), dazu Impuls (MIP) und BC (`ballistics.py`,
   nur in der Serienansicht, nicht zwischengespeichert).
 - **Meldungen mit Code** (`messages.py`): Server liefert `{code, message, params}`, die Oberfläche übersetzt DE/EN.
+- **Papierkorb:** Löschen von Serien und Laborierungen setzt `deleted_at` (Schema 6); alle Abfragen zeigen nur Einträge ohne `deleted_at`. Die
+  Zuordnungen (`series_loads`) bleiben für das Wiederherstellen erhalten, Serien einer gelöschten Laborierung gelten als nicht zugeordnet. Ein erneuter
+  Import ersetzt die Kopie im Papierkorb (gleicher `source_key`). Endgültig löscht nur der Nutzer (`purge`); eine automatische Leerung gibt es nicht.
 - **Sicherung** über die SQLite-Backup-API; Wiederherstellen prüft die Datei (Integrität, Tabellen, keine Trigger/Views, Schema nicht neuer;
   nach der Migration Fremdschlüssel und JSON-Spalten), legt den alten Stand unter `backups/` ab und hebt ältere Sicherungen per Migration an.
   Es bleiben die neuesten N Sicherheitskopien (Einstellung `backup_keep`, Standard 5, in `settings.json` neben der Datenbank, in der Oberfläche
@@ -55,6 +58,7 @@ Fehler: `{"detail": {"code", "message", "params"}}` (Meldungscodes in `messages.
 | | `POST /api/loads/{id}/apply-weight[?clear=true]` | Geschossgewicht auf alle Serien anwenden oder die Überschreibung entfernen |
 | | `POST /api/loads/{id}/duplicate` | Kopie als Entwurf (Body optional `{"name"}`), `parent_id` zeigt auf die Vorlage; `GET /api/loads/{id}` liefert `parent` und `variants` |
 | | `GET /api/loads/{id}/ladder?by=charge\|seating` | Datenpunkte der Ladeleiter bzw. des Setztiefen-Tests |
+| Papierkorb | `GET /api/trash`, `POST /api/trash/{series\|loads}/{id}/restore`, `DELETE /api/trash/{series\|loads}/{id}`, `DELETE /api/trash` | Gelöschte Serien und Laborierungen ansehen, wiederherstellen, endgültig löschen |
 | Import | `POST /api/import[?load_id=&assign_existing=true]` | SD-Karten-ZIP oder GRT-Datei (Multipart-Feld `file`); `assign_existing` legt bereits vorhandene Serien zusätzlich in die Laborierung |
 | Serien | `GET /api/series[?unassigned=true&load_id=]` | Liste mit Filter (nicht zugeordnet, einer Laborierung) |
 | | `GET/PATCH/DELETE /api/series/{id}` | Serie mit Schüssen, Laborierungen und BC lesen, ändern, löschen |
