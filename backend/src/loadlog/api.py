@@ -6,6 +6,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
@@ -22,6 +23,7 @@ from .grt import GrtError, looks_like_grt, parse_grtload
 from .importer import ImportFailure, import_zip
 from .messages import CodedError, Note, note_json
 from .models import GRAMS_PER_GRAIN
+from .settings import LIMITS, Settings
 from .stats import compute, linear_fit
 from .units import check_units
 
@@ -100,6 +102,10 @@ class SeriesPatch(_Body):
     trigger_mode: Literal["doppler", "internal", "external"] | None = None
 
 
+class SettingsPatch(_Body):
+    backup_keep: int | None = Field(default=None, ge=LIMITS["backup_keep"][0], le=LIMITS["backup_keep"][1])
+
+
 class ExcludedIn(_Body):
     excluded: bool
 
@@ -144,10 +150,32 @@ def _slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9]+", "-", text).strip("-").lower() or "report"
 
 
+def exposure_warning(env: dict | None = None) -> str | None:
+    """Hinweis für das Startprotokoll, wenn LoadLog im Netz erreichbar ist, ohne dass erlaubte Host-Namen gesetzt sind."""
+    env = os.environ if env is None else env
+    bind = env.get("LOADLOG_BIND") or env.get("LOADLOG_HOST") or "127.0.0.1"
+    if bind in ("127.0.0.1", "localhost", "::1") or env.get("LOADLOG_ALLOWED_HOSTS", "").strip():
+        return None
+    return (f"LoadLog ist im Netz erreichbar (Bindung {bind}), aber LOADLOG_ALLOWED_HOSTS ist leer: Es gibt weder Anmeldung noch "
+            "Prüfung des Host-Namens (Schutz vor DNS-Rebinding). Siehe Handbuch, Abschnitt \"Betrieb im Netz\".")
+
+
+def _same_origin(origin: str, request: Request, allowed: list[str]) -> bool:
+    """Gehört der `Origin`-Kopf zu dieser Anwendung? Verglichen wird mit dem Host der Anfrage, dem von einem Proxy gemeldeten
+    Host und den erlaubten Host-Namen (mit oder ohne Port)."""
+    host = urlsplit(origin).netloc.lower()
+    if not host:
+        return False
+    names = {request.headers.get("host", "").lower(), request.headers.get("x-forwarded-host", "").lower(), *(a.lower() for a in allowed)}
+    return host in names or host.rsplit(":", 1)[0] in {n for n in names if ":" not in n}
+
+
 def create_app(db_path: str | Path | None = None, static_dir: str | Path | None = None,
                manual_dir: str | Path | None = None) -> FastAPI:
     data_dir = Path(os.environ.get("LOADLOG_DATA_DIR", "data"))
     db = Database(db_path if db_path is not None else data_dir / "loadlog.sqlite3")
+    settings = Settings(None if db.path == ":memory:" else Path(db.path).parent / "settings.json")
+    restore_allowed = os.environ.get("LOADLOG_ALLOW_RESTORE", "1").strip().lower() not in ("0", "false", "no", "off")
     app = FastAPI(title="LoadLog", version=__version__, docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json")
     hosts = [h.strip() for h in os.environ.get("LOADLOG_ALLOWED_HOSTS", "").split(",") if h.strip()]
     if hosts:  # optional: schützt vor DNS-Rebinding, wenn die App im Netz erreichbar ist
@@ -158,7 +186,8 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         resp = None
         if request.method not in ("GET", "HEAD", "OPTIONS"):
             # Schreibende Anfragen, die der Browser von einer fremden Webseite aus schickt, werden abgewiesen (CSRF)
-            if request.headers.get("sec-fetch-site") in ("cross-site", "same-site"):
+            origin = request.headers.get("origin")
+            if request.headers.get("sec-fetch-site") in ("cross-site", "same-site") or (origin is not None and not _same_origin(origin, request, hosts)):
                 resp = JSONResponse({"detail": Note("cross_site_blocked").as_dict()}, status_code=403)
             else:  # zu große Uploads schon anhand von Content-Length ablehnen, bevor sie gelesen werden
                 limit = {"/api/import": MAX_UPLOAD_BYTES, "/api/system/restore": MAX_RESTORE_BYTES}.get(request.url.path)
@@ -171,6 +200,8 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "no-referrer")
         resp.headers.setdefault("X-Frame-Options", "DENY")
+        if request.url.path.startswith("/api/"):
+            resp.headers.setdefault("Cache-Control", "no-store")  # Daten nicht in Browser- oder Proxy-Zwischenspeichern ablegen
         if not request.url.path.startswith("/api/docs"):
             resp.headers.setdefault(
                 "Content-Security-Policy",
@@ -503,6 +534,8 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
     async def restore(file: UploadFile, request: Request):
         """Ersetzt ALLE Daten durch eine Sicherung. Der Kopfwert verhindert, dass fremde Webseiten das auslösen können
         (ein Formular-Post ohne eigenen Kopf wird abgewiesen)."""
+        if not restore_allowed:
+            raise fail(403, "restore_disabled")
         if request.headers.get("x-loadlog-confirm") != "restore":
             raise fail(400, "restore_confirm")
         fd, tmp = tempfile.mkstemp(suffix=".sqlite3")
@@ -515,11 +548,23 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
                         raise fail(413, "upload_too_large", max=MAX_RESTORE_BYTES // (1024 * 1024))
                     out.write(chunk)
             try:
-                return db.restore_from(tmp)
+                return db.restore_from(tmp, keep=settings.get()["backup_keep"])
             except CodedError as exc:
                 raise coded(400, exc) from exc
         finally:
             os.unlink(tmp)
+
+    # ---- Einstellungen des Servers ----
+    @app.get("/api/settings")
+    def get_settings():
+        return settings.get()
+
+    @app.patch("/api/settings")
+    def patch_settings(body: SettingsPatch):
+        values = body.model_dump(exclude_none=True)
+        out = settings.update(values) if values else settings.get()
+        db.prune_safety_copies(out["backup_keep"])  # eine kleinere Zahl räumt sofort auf
+        return out
 
     # ---- Handbuch und Oberfläche ----
     manual = Path(manual_dir or os.environ.get("LOADLOG_MANUAL_DIR", ""))

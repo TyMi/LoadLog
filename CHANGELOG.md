@@ -2,6 +2,16 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.7
+
+Härtung aus der unabhängigen Prüfung.
+
+- **Fremde Webseiten:** Schreibende Anfragen mit fremdem oder `null`-`Origin` werden abgewiesen (zusätzlich zu `Sec-Fetch-Site`); `Origin` darf zum Host der Anfrage, zu `X-Forwarded-Host` oder zu `LOADLOG_ALLOWED_HOSTS` passen. API-Antworten tragen `Cache-Control: no-store`.
+- **Betrieb im Netz:** Ist die App an eine Netzadresse gebunden und `LOADLOG_ALLOWED_HOSTS` leer, schreibt der Start eine Warnung ins Protokoll. Das Handbuch hat eine Checkliste für den Betrieb im Intranet (Host-Namen, Reverse-Proxy, TLS, Sicherungen), SECURITY.md ist präzisiert (Bindung im Container).
+- **Wiederherstellen:** Die Prüfung der Sicherung umfasst jetzt Fremdschlüssel und die JSON-Spalten der Schüsse; eine präparierte Datei wird abgelehnt, bevor die laufenden Daten ersetzt werden. `LOADLOG_ALLOW_RESTORE=0` schaltet das Wiederherstellen ab.
+- **Sicherheitskopien:** Es bleiben die neuesten N Kopien unter `backups/` (Standard 5, einstellbar unter *Einstellungen*, Datei `settings.json` im Datenordner).
+- **Grenzen:** GRT-Dateien sind auf 10 MB begrenzt (echte Dateien: etwa 1,5 MB). `docker-compose.yml`: Speicher- und Prozessgrenze (`LOADLOG_MEM_LIMIT`, Standard 1 GB), `/tmp` mit `noexec,nosuid`.
+
 ## 0.0.6
 
 - **GRT-Import:** Pulvermenge (`mc`) und Pulvertemperatur (`pt`) der Kopfdaten werden mit ihrer Einheit übernommen (Gramm, Kilogramm, Celsius, Kelvin, Fahrenheit; bei unbekannter Einheit oder unplausiblem Wert bleibt das Feld leer). Die Leiterdefinition (Stufenzahl, Schrittweite) steht in der Notiz der Laborierung und setzt bei Dateien ohne Messdaten den Typ *Ladeleiter*.

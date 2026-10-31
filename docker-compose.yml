@@ -9,9 +9,14 @@ services:
     restart: unless-stopped
     read_only: true
     environment:
-      LOADLOG_ALLOWED_HOSTS: ${LOADLOG_ALLOWED_HOSTS:-}  # optional, kommagetrennt (Schutz vor DNS-Rebinding)
+      LOADLOG_BIND: ${LOADLOG_BIND:-127.0.0.1}  # nur für die Warnung im Startprotokoll; die Veröffentlichung des Ports steht oben
+      # Bei Betrieb im Netz setzen: erlaubte Host-Namen, kommagetrennt, z. B. "loadlog.lan,10.0.0.5" (Schutz vor DNS-Rebinding)
+      LOADLOG_ALLOWED_HOSTS: ${LOADLOG_ALLOWED_HOSTS:-}
+      LOADLOG_ALLOW_RESTORE: ${LOADLOG_ALLOW_RESTORE:-1}  # 0 schaltet das Wiederherstellen ab
     tmpfs:
-      - /tmp:size=640m
+      - /tmp:size=640m,noexec,nosuid
+    mem_limit: ${LOADLOG_MEM_LIMIT:-1g}  # tmpfs (bis 640 MB, für Uploads und Sicherungen) zählt mit
+    pids_limit: 200
     cap_drop: [ALL]
     security_opt:
       - no-new-privileges:true

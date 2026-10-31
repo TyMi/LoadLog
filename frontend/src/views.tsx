@@ -198,6 +198,21 @@ export function SettingsView() {
   const { t, lang, units, pdf, version, manualVersion, setLang, setUnits } = useApp();
   const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
   const [busy, setBusy] = useState(false);
+  const [keep, setKeep] = useState<string | null>(null);  // null = noch nicht geladen
+  useEffect(() => {
+    api.settings().then((v) => setKeep(String(v.backup_keep))).catch(() => undefined);
+  }, []);
+  const saveKeep = async () => {
+    const n = parseNum(keep ?? "");
+    if (n === null || n === undefined || !Number.isInteger(n)) return setMsg({ err: `${t("actionFailed")}: ${t("invalidNumber")}` });
+    try {
+      const v = await api.setSettings({ backup_keep: n });
+      setKeep(String(v.backup_keep));
+      setMsg({ ok: t("settingsSaved") });
+    } catch (err) {
+      setMsg({ err: `${t("actionFailed")}: ${(err as Error).message}` });
+    }
+  };
   const restore = async (e: Event) => {
     const input = e.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
@@ -247,6 +262,13 @@ export function SettingsView() {
         </div>
         <div class="muted small">{t("backupHint")}</div>
         <div class="muted small"><strong>{t("restoreTitle")}:</strong> {t("restoreHint")}</div>
+        {keep !== null && (
+          <div class="pair">
+            <label class="flabel" for="backup-keep">{t("backupKeep")}</label>
+            <input id="backup-keep" type="text" inputMode="numeric" maxLength={3} value={keep} style={{ width: "90px" }} onInput={(e) => setKeep(e.currentTarget.value)} onChange={saveKeep} />
+          </div>
+        )}
+        {keep !== null && <div class="muted small">{t("backupKeepHint")}</div>}
         {msg.ok && <div role="status">{msg.ok}</div>}
         {msg.err && <div role="alert" style={{ color: "var(--red, #ff8a80)" }}>{msg.err}</div>}
       </section>
