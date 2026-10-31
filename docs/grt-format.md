@@ -37,13 +37,22 @@ Alle Textattribute sind URL-kodiert (`%20`, `%C2%B0`, ...).
 | `projectile@mname/pname/lotid` | Hersteller/Typ/Los | `bullet_maker/_type/_lot` |
 | `propellant@mname/pname/lotid` | Hersteller/Typ/Los | `powder_maker/_name/_lot` |
 | `caliber@oal`, `projectile@gdepth` | Patronenlänge, Setztiefe | `coal_mm`, `seating_depth_mm` |
+| `propellant@mc` | Pulvermenge der Laborierung, mit `unit` (z. B. `g`) | `charge_gr` der Laborierung (unbekannte Einheit oder Wert über 500 gr: leer) |
+| `propellant@pt` | Pulvertemperatur, mit `unit` (z. B. `Cel`; auch `K`, `degF`) | `temperature_c` (außerhalb −60 bis 80 °C oder unbekannte Einheit: leer) |
+| `propellant@laddercnt`, `@laddermc` | Anzahl der Leiterstufen und Schrittweite (`unit`, z. B. `g`) | Notiz "Leiter: n Stufen à x gr" der Laborierung; ohne Messdaten Typ `ladder`, wenn mehr als eine Stufe |
+| `gun@xe` | Lauflänge in mm | Notiz der Laborierung (Waffe wird nicht angelegt) |
 
 Nicht in der Datei: Signalstärke (Balken), SNR der Trackpunkte, Geräte-ID, Ke/PF. Energie wird aus
 Gewicht und Geschwindigkeit berechnet (½·m·v²), die Signalstärke bleibt leer.
 
+`appendix` kann außer `Measurement` weitere Teile enthalten (Notiz, Schussgruppen-Punkte, eingebettete Bilder, daher
+sind echte Dateien oft über 1 MB groß, obwohl die Messdaten klein sind). LoadLog liest diese Teile nicht.
+Manche Dateien enthalten gar keine `Measurement`-Messreihe (nur Kopfdaten): siehe Import-Verhalten.
+
 Serien ohne Track und ohne Distanzwerte kommen vor (manuell erfasste oder aus der LabRadar-App übernommene
 Messungen mit nur V0). Dieselbe Serien-Nr. kann mehrfach vorkommen (verschiedene SD-Karten); Eindeutigkeit
-liefert der Zeitstempel des ersten Schusses (`source_key`).
+liefert der Zeitstempel des ersten Schusses (`source_key`). Haben mehrere Messgruppen derselben Datei Namen und Nummer
+gemeinsam (z. B. zweimal "Series 15"), erhält die zweite und jede weitere einen Zähler: "Series 15 (2)".
 
 ## Import-Verhalten
 
@@ -56,6 +65,9 @@ liefert der Zeitstempel des ersten Schusses (`source_key`).
 - Bereits vorhandene Serien werden übersprungen. GRT liefert keine Geräte-ID und damit einen anderen `source_key`; dieselbe Serie aus
   SD-Karte und GRT erkennt LoadLog deshalb über den ersten Schuss (±2 s), die Schusszahl und V0 (±1,5 m/s): SD nach GRT wertet die
   GRT-Serie mit den genaueren Daten auf, GRT nach SD wird übersprungen.
+- **Ohne Messdaten** (kein `Measurement` oder keine `charge`-Elemente): LoadLog legt nur die Laborierung aus den Kopfdaten an und
+  meldet "Die Datei enthält keine Messdaten". Enthält die Datei Messreihen, aber keine verwertbare, wird sie abgelehnt. Eine Datei
+  ganz ohne Kopfdaten und Messungen ist ebenfalls ungültig.
 - XML-Härtung: DOCTYPE/ENTITY werden abgelehnt, Größe max. 50 MB.
 
 ## Datenschutz

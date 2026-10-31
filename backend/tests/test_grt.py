@@ -79,4 +79,52 @@ def test_header_numbers_are_rounded(grt):
 
 def test_series_names_from_grt(grt):
     # Standardnamen "Series N" bleiben leer (Anzeige "Serie N"), eigene Namen werden übernommen
-    assert [s.name for s in grt.series] == [None, None, None, None, "Handnotiz"]
+    # und eine zweite Messgruppe mit demselben Namen wird unterscheidbar
+    assert [s.name for s in grt.series] == [None, None, None, "Series 1 (2)", "Handnotiz"]
+
+
+def _header(propellant: str, measurement: str = "") -> bytes:
+    appendix = f"<appendix>{measurement}</appendix>" if measurement else ""
+    return (
+        '<?xml version="1.0"?><GordonsReloadingTool><InnerBallistikInput><title>T</title>'
+        '<projectile><input name="mp" value="10" unit="g" type="decimal"/></projectile>'
+        f"<propellant>{propellant}</propellant>{appendix}</InnerBallistikInput></GordonsReloadingTool>"
+    ).encode()
+
+
+def test_header_charge_temperature_and_ladder_are_mapped_with_units():
+    prop = (
+        '<input name="mc" value="2.6" unit="g" type="decimal"/><input name="pt" value="21" unit="Cel" type="decimal"/>'
+        '<input name="laddercnt" value="10" unit="" type="decimal"/><input name="laddermc" value="0.0129598" unit="g" type="decimal"/>'
+    )
+    res = parse_grtload(_header(prop))
+    assert res.load["charge_gr"] == pytest.approx(40.12, abs=0.01)
+    assert res.load["temperature_c"] == 21.0
+    assert res.load["trial_type"] == "ladder" and "10 Stufen à 0.20 gr" in res.load["notes"]
+    kelvin = parse_grtload(_header('<input name="pt" value="294.15" unit="K" type="decimal"/>'))
+    assert kelvin.load["temperature_c"] == pytest.approx(21.0)
+    unknown = parse_grtload(_header('<input name="pt" value="21" unit="xyz" type="decimal"/><input name="mc" value="2" unit="lbs"/>'))
+    assert "temperature_c" not in unknown.load and "charge_gr" not in unknown.load  # unbekannte Einheit: nicht raten
+    out_of_range = parse_grtload(_header('<input name="pt" value="500" unit="Cel"/><input name="mc" value="500" unit="kg"/>'))
+    assert "temperature_c" not in out_of_range.load and "charge_gr" not in out_of_range.load
+
+
+def test_file_without_measurements_creates_only_the_load():
+    res = parse_grtload(_header('<input name="mc" value="2.6" unit="g"/>'))
+    assert res.series == [] and [w.code for w in res.warnings] == ["grt_load_only"]
+    assert res.load["trial_type"] == "single"
+
+
+def test_measurement_section_without_usable_series_is_still_rejected():
+    with pytest.raises(GrtError):
+        parse_grtload(grt_with_charge_only_bad())
+
+
+def grt_with_charge_only_bad() -> bytes:
+    return _header("", '<Measurement><charge name="Series 1" value="0.0026"><shot V0="abc" note="x"/></charge></Measurement>')
+
+
+def test_repeated_series_names_get_a_counter():
+    m = "".join(f'<charge name="Series 15" value="0.0026"><shot V0="300" note="01-0{d}-2030 10:00:00"/></charge>' for d in (1, 2, 3))
+    res = parse_grtload(_header("", f"<Measurement>{m}</Measurement>"))
+    assert [s.name for s in res.series] == [None, "Series 15 (2)", "Series 15 (3)"]

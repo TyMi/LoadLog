@@ -2,6 +2,13 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.6
+
+- **GRT-Import:** Pulvermenge (`mc`) und Pulvertemperatur (`pt`) der Kopfdaten werden mit ihrer Einheit übernommen (Gramm, Kilogramm, Celsius, Kelvin, Fahrenheit; bei unbekannter Einheit oder unplausiblem Wert bleibt das Feld leer). Die Leiterdefinition (Stufenzahl, Schrittweite) steht in der Notiz der Laborierung und setzt bei Dateien ohne Messdaten den Typ *Ladeleiter*.
+- **GRT ohne Messdaten:** Enthält die Datei keine Messreihen, wird nur die Laborierung angelegt, mit Hinweis; bisher wurde die Datei abgelehnt und die Kopfdaten gingen verloren.
+- **Serienbezeichnung:** Haben mehrere Messgruppen einer GRT-Datei denselben Namen (z. B. zweimal „Series 15“), erhalten die weiteren einen Zähler („Series 15 (2)“).
+- **Dokumentation:** Handbuch (Import) und `docs/grt-format.md` beschreiben die zusätzlichen Felder, Dateien ohne Messdaten und die Namensregel.
+
 ## 0.0.5
 
 Fehlerkorrekturen aus einer unabhängigen Prüfung.

@@ -33,6 +33,7 @@ _DE = {
     "grt_shot_skipped": "{label}: Schuss {shot} übersprungen (Zeit oder V0 fehlt)",
     "grt_track_invalid": "{label}: Schuss {shot}: Track mit ungültigen Werten ignoriert",
     "grt_series_empty": "{label}: ohne verwertbare Schüsse übersprungen",
+    "grt_load_only": "Die Datei enthält keine Messdaten: nur die Laborierung wurde angelegt",
     "grt_weight_missing": "Geschossgewicht fehlt in der Datei: MIP und Energie sind nicht berechenbar",
     # Duplikate
     "duplicate_series": "{label} ist bereits als Serie {id} vorhanden und wurde übersprungen",
