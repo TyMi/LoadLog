@@ -104,7 +104,7 @@ def date_range(shots, lang: str) -> str:
     days = sorted({s.taken_at.date() for s in shots})
     if not days:
         return "–"
-    f = (lambda d: d.strftime("%d.%m.%Y")) if lang == "de" else (lambda d: d.strftime("%d/%m/%Y"))
+    f = (lambda d: d.strftime("%d.%m.%Y")) if lang == "de" else (lambda d: d.strftime("%Y-%m-%d"))
     return f(days[0]) if len(days) == 1 else f"{f(days[0])} – {f(days[-1])}"
 
 

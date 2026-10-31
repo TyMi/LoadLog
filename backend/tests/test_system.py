@@ -171,3 +171,11 @@ def test_restore_rejects_newer_schema_and_upgrades_older(client, tmp_path, legac
     con.close()
     assert restore(client, old.read_bytes()).status_code == 200
     assert client.get("/api/series/1").json()["load_ids"] == [1]  # Schema 3 wurde angehoben
+
+
+def test_report_dates_are_consistent_per_language(client):
+    sid = client.post("/api/import", files={"file": ("s.zip", synth.make_zip(seed=5))}).json()["imported"][0]["id"]
+    de = client.get(f"/api/reports/series/{sid}?lang=de&format=html").text
+    en = client.get(f"/api/reports/series/{sid}?lang=en&format=html").text
+    assert "15.01.2030" in de and "2030-01-15" not in de
+    assert "2030-01-15" in en and "15/01/2030" not in en and "15.01.2030" not in en  # ISO wie im Kopf ("Created") und im CSV

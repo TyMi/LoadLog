@@ -122,7 +122,7 @@ def test_series_report_shows_date(client):
     taken = client.get(f"/api/series/{sid}").json()["shots"][0]["taken_at"][:10]
     y, m, d = taken.split("-")
     assert f"{d}.{m}.{y}" in client.get(f"/api/reports/series/{sid}?format=html&lang=de").text
-    assert f"{d}/{m}/{y}" in client.get(f"/api/reports/series/{sid}?format=html&lang=en").text
+    assert taken in client.get(f"/api/reports/series/{sid}?format=html&lang=en").text
 
 
 def test_series_report_shows_bc(client):
