@@ -29,8 +29,9 @@ export function fmt(x: number | null | undefined, decimals: number, lang: Lang):
 
 /** Eingabe mit Komma oder Punkt; leer => null; ungültig => undefined. */
 export function parseNum(text: string): number | null | undefined {
-  const t = text.trim().replace(",", ".");
+  const t = text.trim();
   if (t === "") return null;
-  const n = Number(t);
+  if (!/^[-+]?(\d+[.,]?\d*|[.,]\d+)$/.test(t)) return undefined; // nur Ziffern mit Komma oder Punkt (kein 0x10, 1e3, 1.234,5)
+  const n = Number(t.replace(",", "."));
   return Number.isFinite(n) ? n : undefined;
 }

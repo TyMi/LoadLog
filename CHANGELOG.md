@@ -2,6 +2,17 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.5
+
+Fehlerkorrekturen aus einer unabhängigen Prüfung.
+
+- **Schuss ausschließen:** Die Serienseite friert dabei nicht mehr ein; die Antwort des Servers enthält jetzt wie beim Laden der Seite auch die Laborierungen.
+- **Import:** Doppelte Schussnummern in einer Serie führen nicht mehr zu einem Serverfehler; der erste Schuss zählt, der Rest wird übersprungen und gemeldet.
+- **Eingaben:** `NaN` und `Infinity` werden mit einer Meldung abgelehnt (statt Serverfehler). Fehler bei Zahlen und Texten erscheinen übersetzt (Deutsch/Englisch) statt als englische Rohmeldung. Namen aus Leerzeichen werden abgelehnt, Leerraum am Rand wird entfernt; ein leerer Serienname bedeutet „ohne Namen“.
+- **Zahlenfelder:** Es gelten nur Ziffern mit Komma oder Punkt (`0x10`, `1e3` und `1.234,5` werden abgelehnt).
+- **Löschen:** Fehler beim Löschen von Laborierung oder Waffe werden angezeigt; die Rückfrage nennt, in wie vielen Laborierungen die Waffe verwendet wird. Hinweise zum angewendeten Gewicht bei Serien in mehreren Laborierungen.
+- **Oberfläche:** Importseite und Laborierungsformular folgen einem Sprachwechsel (Meldungen, Dezimalzeichen).
+
 ## 0.0.4
 
 - **Handbuch:** Im Abschnitt Ladeleitern und Setztiefen steht ausdrücklich, dass alle Werte in den Beispielen und Screenshots erfunden und keine Ladedaten sind (Deutsch und Englisch).

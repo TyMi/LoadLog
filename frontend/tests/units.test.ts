@@ -26,6 +26,10 @@ describe("units", () => {
     expect(parseNum(" 42.5 ")).toBe(42.5);
     expect(parseNum("")).toBeNull();
     expect(parseNum("abc")).toBeUndefined();
+    for (const bad of ["0x10", "1e3", "1.234,5", "1,2,3", "--5", "5 5", "Infinity", "NaN"]) expect(parseNum(bad)).toBeUndefined();
+    expect(parseNum("-3,5")).toBe(-3.5);
+    expect(parseNum(".5")).toBe(0.5);
+    expect(parseNum("5.")).toBe(5);
   });
 });
 

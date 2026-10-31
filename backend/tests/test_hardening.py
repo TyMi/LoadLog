@@ -461,3 +461,46 @@ def test_grt_with_utf16_doctype_or_unknown_encoding_is_rejected():
     for blob in (evil.encode("utf-16"), b'<?xml version="1.0" encoding="UfF-8"?><GordonsReloadingTool/>'):
         with pytest.raises(GrtError):
             parse_grtload(blob)
+
+
+# ---- Review vom 2026-10-31 (BUG-01, 02, 03, 09, 11) ----
+def test_excluding_a_shot_returns_the_full_series_with_loads(client):
+    sid = client.post("/api/import", files={"file": ("s.zip", synth.make_zip(seed=5))}).json()["imported"][0]["id"]
+    lid = client.post("/api/loads", json={"name": "L"}).json()["id"]
+    client.put(f"/api/series/{sid}/loads/{lid}")
+    out = client.put(f"/api/series/{sid}/shots/1/excluded", json={"excluded": True}).json()
+    assert out["shots"][0]["excluded"] is True
+    assert [load["id"] for load in out["loads"]] == [lid] and out["load"]["id"] == lid
+    assert out.keys() == client.get(f"/api/series/{sid}").json().keys()
+
+
+def test_duplicate_shot_numbers_are_skipped_with_a_warning():
+    series = importer.import_zip(synth.make_zip(seed=5)).series[0]
+    series.shots.append(series.shots[0])  # zweimal Schuss 1
+    warnings: list = []
+    importer.drop_insane(series, "Serie 1", warnings)
+    numbers = [s.number for s in series.shots]
+    assert numbers == sorted(set(numbers)) and [w.code for w in warnings] == ["shot_duplicate"]
+
+
+@pytest.mark.parametrize("raw", ['{"name": "X", "charge_gr": NaN}', '{"name": "X", "charge_gr": Infinity}'])
+def test_non_finite_numbers_are_422_not_500(client, raw):
+    r = client.post("/api/loads", content=raw, headers={"Content-Type": "application/json"})
+    assert r.status_code == 422 and r.json()["detail"]["code"] in ("value_invalid", "value_min", "value_max")
+
+
+def test_validation_errors_are_coded_messages(client):
+    d = client.post("/api/loads", json={"name": "x", "temperature_c": 99}).json()["detail"]
+    assert d["code"] == "value_max" and d["params"] == {"field": "temperature_c", "limit": 80}
+    d = client.post("/api/loads", json={"name": "x", "charge_gr": -1}).json()["detail"]
+    assert d["code"] == "value_min" and d["params"]["field"] == "charge_gr"
+    assert client.post("/api/loads", json={"name": "x", "case_firings": "abc"}).json()["detail"]["code"] == "value_invalid"
+
+
+def test_blank_names_are_rejected_and_edge_whitespace_is_removed(client):
+    assert client.post("/api/loads", json={"name": "   "}).status_code == 422
+    assert client.post("/api/weapons", json={"name": "\t"}).status_code == 422
+    assert client.post("/api/loads", json={"name": "  Test  "}).json()["name"] == "Test"
+    sid = client.post("/api/import", files={"file": ("s.zip", synth.make_zip(seed=5))}).json()["imported"][0]["id"]
+    assert client.patch(f"/api/series/{sid}", json={"name": "Mein Name"}).json()["name"] == "Mein Name"
+    assert client.patch(f"/api/series/{sid}", json={"name": "  "}).json()["name"] is None

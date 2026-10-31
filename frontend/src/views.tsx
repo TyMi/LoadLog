@@ -440,6 +440,12 @@ export function LoadView({ id }: { id: number | null }) {
     if (id === null) setDraft(toDraft(null, lang));
     else if (data) setDraft((cur) => cur ?? toDraft(data, lang));
   }, [data, id, lang]);
+  const shownLang = useRef(lang);
+  useEffect(() => {
+    if (shownLang.current === lang) return;
+    shownLang.current = lang; // bei Sprachwechsel die Dezimalzeichen im Entwurf mitnehmen
+    setDraft((cur) => (cur ? { ...cur, ...Object.fromEntries([...NUM_FIELDS].filter((k) => cur[k]).map((k) => [k, lang === "de" ? cur[k].replace(".", ",") : cur[k].replace(",", ".")])) } : cur));
+  }, [lang]);
 
   if (id !== null && !data) return <Loading error={error} />;
   if (!draft) return <Loading error={null} />;
@@ -463,8 +469,12 @@ export function LoadView({ id }: { id: number | null }) {
   };
   const remove = async () => {
     if (id !== null && confirm(`${t("confirmDelete")}\n${t("deleteLoadHint")}`)) {
-      await api.deleteLoad(id);
-      go("/");
+      try {
+        await api.deleteLoad(id);
+        go("/");
+      } catch (e) {
+        setInfo({ err: `${t("actionFailed")}: ${(e as Error).message}` });
+      }
     }
   };
   const assign = async (sid: number) => {
@@ -886,7 +896,7 @@ export function ImportView() {
       setBusy(false);
       setProgress(null);
     }
-  }, []);
+  }, [t]);
   const [picked, setPicked] = useState<number[]>([]);
   const [target, setTarget] = useState("");
   const [done, setDone] = useState<{ ids: number[]; load: string } | null>(null);
@@ -999,6 +1009,7 @@ export function ImportView() {
 export function WeaponsView() {
   const { t } = useApp();
   const { data, error, reload } = useAsync(() => api.weapons(), []);
+  const loads = useAsync(() => api.loads(), []);
   const [form, setForm] = useState<{ id: number | null; name: string; caliber: string; barrel: string; twist: string }>({ id: null, name: "", caliber: "", barrel: "", twist: "" });
   const [err, setErr] = useState<string | null>(null);
   if (!data) return <Loading error={error} />;
@@ -1020,9 +1031,15 @@ export function WeaponsView() {
   };
   const edit = (w: Weapon) => setForm({ id: w.id, name: w.name, caliber: w.caliber ?? "", barrel: w.barrel_length_mm === null || w.barrel_length_mm === undefined ? "" : String(w.barrel_length_mm), twist: w.twist ?? "" });
   const remove = async (w: Weapon) => {
-    if (confirm(t("confirmDelete"))) {
-      await api.deleteWeapon(w.id);
-      reload();
+    const used = (loads.data ?? []).filter((l) => l.weapon_id === w.id).length;
+    if (confirm(used > 0 ? `${t("confirmDelete")}\n${t("deleteWeaponUsed").replace("{n}", String(used))}` : t("confirmDelete"))) {
+      try {
+        await api.deleteWeapon(w.id);
+        reload();
+        loads.reload();
+      } catch (e) {
+        setErr(`${t("actionFailed")}: ${(e as Error).message}`);
+      }
     }
   };
   const f = (k: "name" | "caliber" | "barrel" | "twist") => (e: Event) => setForm({ ...form, [k]: (e.currentTarget as HTMLInputElement).value });
