@@ -22,8 +22,10 @@ export interface Weapon {
   notes?: string | null;
 }
 export type TrialType = "single" | "ladder" | "seating";
+export type LoadStatus = "draft" | "testing" | "validated" | "retired";
 export interface LoadData {
   name: string;
+  status?: LoadStatus | null;
   trial_type: TrialType;
   weapon_id?: number | null;
   powder_maker?: string | null;
@@ -45,8 +47,14 @@ export interface LoadData {
   temperature_c?: number | null;
   notes?: string | null;
 }
+export interface LoadRef {
+  id: number;
+  name: string;
+  status: LoadStatus | null;
+}
 export interface Load extends LoadData {
   id: number;
+  parent_id?: number | null;
   weapon_name: string | null;
   series_count: number;
   shots_total: number;
@@ -63,6 +71,7 @@ export interface SeriesSummary {
   charge_gr: number | null;
   seating_depth_mm: number | null;
   note: string | null;
+  group_text: string | null;
   trigger_mode: string | null;
   shots_total: number;
   weight_g: number | null;
@@ -140,9 +149,10 @@ export const api = {
   settings: () => req<{ backup_keep: number }>("GET", "/api/settings"),
   setSettings: (body: { backup_keep: number }) => req<{ backup_keep: number }>("PATCH", "/api/settings", body),
   loads: () => req<Load[]>("GET", "/api/loads"),
-  load: (id: number) => req<Load & { weapon: Weapon | null; series: SeriesSummary[] }>("GET", `/api/loads/${id}`),
+  load: (id: number) => req<Load & { weapon: Weapon | null; parent: LoadRef | null; variants: LoadRef[]; series: SeriesSummary[] }>("GET", `/api/loads/${id}`),
   createLoad: (d: Partial<LoadData>) => req<Load>("POST", "/api/loads", d),
   updateLoad: (id: number, d: Partial<LoadData>) => req<Load>("PUT", `/api/loads/${id}`, d),
+  duplicateLoad: (id: number, name: string) => req<Load>("POST", `/api/loads/${id}/duplicate`, { name }),
   deleteLoad: (id: number) => req<void>("DELETE", `/api/loads/${id}`),
   applyWeight: (id: number, clear = false) =>
     req<{ series: number; weight_override_g: number | null }>("POST", `/api/loads/${id}/apply-weight${clear ? "?clear=true" : ""}`),

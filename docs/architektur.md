@@ -6,11 +6,11 @@ Daten: eine SQLite-Datei im Volume `/data`.
 
 ## Datenmodell
 
-`weapons` · `loads` (Laborierung: Stammdaten, Versuchsart single/ladder/seating) ·
-`series` (importiert, eigener Name, Pulvermenge/Setztiefe, Trigger-Modus, Notiz, optionales Überschreib-Gewicht) ·
+`weapons` · `loads` (Laborierung: Stammdaten, Versuchsart single/ladder/seating, Status, `parent_id` = Vorlage der Kopie) ·
+`series` (importiert, eigener Name, Pulvermenge/Setztiefe, Trigger-Modus, Notiz, Gruppengröße als Freitext, optionales Überschreib-Gewicht) ·
 `series_loads` (n:m: eine Serie kann in mehreren Laborierungen liegen; ohne Eintrag = nicht zugeordnet) ·
 `shots` (V0, V/E je Distanz als JSON, Signalstärke, `excluded`, Track als JSON). Alles in SI (m/s, m, J, g);
-Umrechnung nur bei der Anzeige. Schema-Version in `PRAGMA user_version` (aktuell 4), Migrationen in `Database._migrate`;
+Umrechnung nur bei der Anzeige. Schema-Version in `PRAGMA user_version` (aktuell 5), Migrationen in `Database._migrate`;
 `series.load_id` ist nur noch Altlast aus Schema ≤ 3.
 Duplikate: `source_key = Geräte-ID:Serien-Nr:erster Zeitstempel`, zusätzlich Abgleich über erster Schuss (±2 s), Schusszahl und V0
 (SD-Karte nach GRT wertet auf, GRT nach SD wird übersprungen). Löschen einer Laborierung entfernt nur die Verknüpfungen,
@@ -53,6 +53,7 @@ Fehler: `{"detail": {"code", "message", "params"}}` (Meldungscodes in `messages.
 | Waffen | `GET/POST /api/weapons`, `PUT/DELETE /api/weapons/{id}` | Waffen verwalten |
 | Laborierungen | `GET/POST /api/loads`, `GET/PUT/DELETE /api/loads/{id}` | Laborierungen verwalten |
 | | `POST /api/loads/{id}/apply-weight[?clear=true]` | Geschossgewicht auf alle Serien anwenden oder die Überschreibung entfernen |
+| | `POST /api/loads/{id}/duplicate` | Kopie als Entwurf (Body optional `{"name"}`), `parent_id` zeigt auf die Vorlage; `GET /api/loads/{id}` liefert `parent` und `variants` |
 | | `GET /api/loads/{id}/ladder?by=charge\|seating` | Datenpunkte der Ladeleiter bzw. des Setztiefen-Tests |
 | Import | `POST /api/import[?load_id=&assign_existing=true]` | SD-Karten-ZIP oder GRT-Datei (Multipart-Feld `file`); `assign_existing` legt bereits vorhandene Serien zusätzlich in die Laborierung |
 | Serien | `GET /api/series[?unassigned=true&load_id=]` | Liste mit Filter (nicht zugeordnet, einer Laborierung) |

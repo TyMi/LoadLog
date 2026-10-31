@@ -2,6 +2,14 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.10
+
+- **Status der Laborierung:** Entwurf, in Prüfung, bewährt oder ausgemustert (oder ohne Angabe), als Marke in Karten und Liste sichtbar.
+- **Duplizieren:** Eine Laborierung lässt sich als Entwurf mit denselben Stammdaten (ohne Serien) kopieren; die Kopie verweist auf ihre Vorlage, die Vorlage listet ihre Varianten. Schnittstelle `POST /api/loads/{id}/duplicate`.
+- **Suchen und Filtern:** Die Übersicht sucht nach Name, Pulver, Geschoss, Waffe, Hülse, Zünder und Notiz und filtert nach Status.
+- **Gruppengröße:** Freies Textfeld an der Serie (z. B. „25 mm auf 100 m“), auch im PDF-Bericht der Serie.
+- **Datenbank:** Schema 5 (neue Spalten `loads.status`, `loads.parent_id`, `series.group_text`); ältere Datenbanken und Sicherungen werden beim Öffnen bzw. Wiederherstellen migriert.
+
 ## 0.0.9
 
 - **Englisch durchgängig im britischen Format:** PDF-Berichte und CSV-Export zeigen auf Englisch das Datum als `dd/mm/yyyy` (Kopfzeile des Berichts mit Uhrzeit `dd/mm/yyyy hh:mm`); die Oberfläche tat das schon. Deutsch unverändert `tt.mm.jjjj`. Das ISO-Datum der Version 0.0.8 entfällt.
