@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import { chartFileName, savePng, saveSvg } from "./chartExport";
 import { type BcFit, type Load, type LoadData, type SeriesDetail, type SeriesSummary, type Stats, type TrialType, type Weapon, api, urls } from "./api";
 import { type TrackLine, nearestPoint, parsePoints } from "./chartPick";
 import { runImport, type Aggregate } from "./importRun";
@@ -39,6 +40,7 @@ function SvgChart({ url, hover, onPick }: { url: string; hover?: boolean; onPick
   const { t } = useApp();
   const [svg, setSvg] = useState("");
   const [fail, setFail] = useState<string | null>(null);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const [tip, setTip] = useState<{ x: number; y: number; label: string; val: string; shot: number } | null>(null);
   useEffect(() => {
     let alive = true;
@@ -91,7 +93,16 @@ function SvgChart({ url, hover, onPick }: { url: string; hover?: boolean; onPick
     setTip({ x: s.x - r.left, y: s.y - r.top, label: b.label, val: b.val, shot: b.shot });
   };
   // SVG stammt vom eigenen Server (serverseitig erzeugt und escaped)
+  const savePngFile = async () => {
+    setSaveErr(null);
+    try {
+      await savePng(svg, chartFileName(url, "png"));
+    } catch {
+      setSaveErr(t("saveFailed"));
+    }
+  };
   return (
+    <>
     <div class={`chart${tip && onPick ? " pick" : ""}`} onMouseMove={hover ? onMove : undefined} onMouseLeave={() => setTip(null)} onClick={() => tip && onPick?.(tip.shot)}>
       {fail !== null && <div class="msg err" role="alert">{t("chartError")}: {fail}</div>}
       <div dangerouslySetInnerHTML={{ __html: svg }} />
@@ -107,6 +118,14 @@ function SvgChart({ url, hover, onPick }: { url: string; hover?: boolean; onPick
         </>
       )}
     </div>
+    {svg !== "" && (
+      <div class="row small chart-save">
+        <button class="btn ghost" onClick={() => saveSvg(svg, chartFileName(url, "svg"))}>{t("saveSvg")}</button>
+        <button class="btn ghost" onClick={savePngFile}>{t("savePng")}</button>
+        {saveErr && <span role="alert" style={{ color: "var(--red, #ff8a80)" }}>{saveErr}</span>}
+      </div>
+    )}
+    </>
   );
 }
 
@@ -790,6 +809,7 @@ export function SeriesView({ id }: { id: number }) {
   const loads = useAsync(() => api.loads(), []);
   const [sel, setSel] = useState<number | null>(null);
   const [addLoad, setAddLoad] = useState("");
+  const [windowN, setWindowN] = useState(3);
   const [meta, setMeta] = useState<Record<string, string> | null>(null);
   const [info, setInfo] = useState<{ ok?: string; err?: string }>({});
 
@@ -865,6 +885,21 @@ export function SeriesView({ id }: { id: number }) {
         <div class="row"><h2 class="grow">{t("trackTitle")}</h2><span class="muted small">{t("trackHint")}</span></div>
         <SvgChart hover onPick={setSel} url={urls.seriesChart(id, { sel: sel ?? undefined, lang, units })} />
       </section>
+      {data.shots.length > 1 && (
+        <section class="panel">
+          <div class="row">
+            <h2 class="grow">{t("sequenceTitle")}</h2>
+            <label class="small pair">
+              <span class="flabel">{t("windowLabel")}</span>
+              <select aria-label={t("windowLabel")} value={windowN} onChange={(e) => setWindowN(Number(e.currentTarget.value))} style={{ width: "auto" }}>
+                {[2, 3, 5, 7].map((n) => <option value={n}>{n} {t("windowShots")}</option>)}
+              </select>
+            </label>
+          </div>
+          <div class="muted small">{t("sequenceHint")}</div>
+          <SvgChart url={urls.sequenceChart(id, { window: windowN, lang, units })} />
+        </section>
+      )}
       <div class="sidebar-layout">
         <section class="panel main" aria-label={t("shots")}>
           <h2>{t("shots")}</h2>

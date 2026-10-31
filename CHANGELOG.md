@@ -2,6 +2,12 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.12
+
+- **V0 über die Schussfolge:** Neues Diagramm in der Serienansicht und im PDF-Bericht der Serie: V0 je Schuss in der Reihenfolge, mit gleitendem Mittelwert (Fenster 2, 3, 5 oder 7 Schüsse, ausgeschlossene Schüsse zählen nicht) und linearem Trend je Schuss. Schnittstelle `GET /api/charts/series/{id}/sequence.svg?window=`.
+- **Diagramme speichern:** Unter jedem Diagramm gibt es *Als SVG speichern* und *Als PNG speichern* (im Browser erzeugt, ohne zusätzliche Bibliothek).
+- **Tests:** Komponententests für die Importseite (Import, Fehlermeldungen, Zuordnen und Rückgängig, Löschen) und das Laborierungsformular (Anlegen, ungültige Zahl, Name, Gewicht anwenden).
+
 ## 0.0.11
 
 - **Papierkorb:** Gelöschte Serien und Laborierungen werden nicht mehr sofort entfernt, sondern in den Papierkorb (Menü *Papierkorb*) verschoben. Von dort lassen sie sich wiederherstellen (Serien samt ihren Zuordnungen) oder endgültig löschen, einzeln oder mit *Papierkorb leeren*. Es wird nichts automatisch gelöscht. Eine Sicherung enthält den Papierkorb; Waffen werden weiterhin sofort gelöscht.

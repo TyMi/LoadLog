@@ -5,7 +5,7 @@ import { AppCtx } from "../src/app";
 import { tr } from "../src/i18n";
 import { setMessageLang } from "../src/messages";
 import type { Lang, Units } from "../src/units";
-import { LoadView, LoadsView, SeriesView, SettingsView, TrashView } from "../src/views";
+import { ImportView, LoadView, LoadsView, SeriesView, SettingsView, TrashView } from "../src/views";
 
 const stats = { n: 5, avg: 300, sd: 2, es: 6, vmin: 297, vmax: 303, energy_avg_j: 3000, mip_avg: 349.6, mip_min: 340.2 };
 const load = (id: number, name: string, weapon_id: number | null, weapon_name: string | null) => ({
@@ -180,6 +180,30 @@ describe("Serie: Laborierungen", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
     await waitFor(() => expect(patches).toHaveLength(1));
     expect(patches[0].group_text).toBe("25 mm auf 100 m");
+  });
+
+  it("zeigt V0 über die Schussfolge, das Mittelungsfenster ändert die Abfrage", async () => {
+    mount(<SeriesView id={7} />, { lang: "en", units: "imp" });
+    await screen.findByText("V0 over the shot sequence");
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/charts/series/7/sequence.svg?window=3&lang=en&units=imp&theme=dark")).toBe(true));
+    fireEvent.change(screen.getByLabelText("Average over"), { target: { value: "5" } });
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/charts/series/7/sequence.svg?window=5&lang=en&units=imp&theme=dark")).toBe(true));
+  });
+
+  it("Diagramme lassen sich als SVG speichern (Dateiname nach Diagramm)", async () => {
+    const names: string[] = [];
+    vi.stubGlobal("URL", { ...URL, createObjectURL: () => "blob:x", revokeObjectURL: () => undefined });
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
+      names.push(this.download);
+    });
+    mount(<SeriesView id={7} />);
+    await screen.findByText("V0 über die Schussfolge");
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Als SVG speichern" })).toHaveLength(2));
+    const buttons = screen.getAllByRole("button", { name: "Als SVG speichern" });
+    fireEvent.click(buttons[0]);
+    fireEvent.click(buttons[1]);
+    expect(names).toEqual(["loadlog-series-7.svg", "loadlog-series-7-sequence.svg"]);
+    expect(screen.getAllByRole("button", { name: "Als PNG speichern" })).toHaveLength(2);
   });
 
   it("zeigt MIP ohne Nachkommastellen", async () => {
@@ -444,5 +468,163 @@ describe("Papierkorb", () => {
     fireEvent.click(screen.getByRole("button", { name: "Papierkorb leeren" }));
     await screen.findByText("Der Papierkorb ist leer.");
     expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["/api/trash/loads/4", "/api/trash"]);
+  });
+});
+
+
+// ---- Import und Laborierung (LL-17) ----
+const jsonRes = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } });
+const freeSeries = (n: number) => ({ ...SERIES, id: 20 + n, number: n, name: null, load_id: null, load_ids: [] as number[], shots: undefined, loads: undefined, load: undefined });
+
+describe("Importseite", () => {
+  const pickFiles = (view: ReturnType<typeof mount>, files: File[]) => {
+    const input = view.container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+    Object.defineProperty(input, "files", { value: files, configurable: true });
+    fireEvent.change(input);
+  };
+
+  it("importiert eine ZIP und zeigt Ergebnis, Hinweise und die Liste der nicht zugeordneten Serien", async () => {
+    let free = [freeSeries(1)];
+    fakeFetch((url, init) => {
+      if (url === "/api/series?unassigned=true") return jsonRes(free);
+      if (url === "/api/import" && init?.method === "POST") {
+        free = [freeSeries(1), freeSeries(2), freeSeries(3)];
+        return jsonRes({ imported: [{ id: 22, number: 2 }, { id: 23, number: 3 }], skipped: 1, warnings: [{ code: "duplicate_series", message: "x", params: { label: "Serie 1", id: 21 } }], load_id: null });
+      }
+      return undefined;
+    });
+    const view = mount(<ImportView />);
+    await screen.findByText("Serie 1");
+    pickFiles(view, [new File(["x"], "karte.zip")]);
+    await screen.findByText(/2 importiert · 1 bereits vorhanden/);
+    expect(view.container.textContent).toContain("Serie 1 ist bereits als Serie 21 vorhanden und wurde übersprungen");
+    await screen.findByText("Serie 3");
+    expect(calls.filter((c) => c.method === "POST").map((c) => c.url)).toEqual(["/api/import"]);
+  });
+
+  it("meldet Fehler des Servers übersetzt und lehnt unbekannte Dateien ab", async () => {
+    fakeFetch((url, init) => {
+      if (url === "/api/series?unassigned=true") return jsonRes([]);
+      if (url === "/api/import" && init?.method === "POST") return jsonRes({ detail: { code: "no_series", message: "roh", params: {} } }, 400);
+      return undefined;
+    });
+    const view = mount(<ImportView />);
+    await screen.findByText("Noch nichts vorhanden.");
+    pickFiles(view, [new File(["x"], "notizen.txt")]);
+    await screen.findByText(/Keine ZIP/);
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+    pickFiles(view, [new File(["x"], "karte.zip")]);
+    await screen.findByText(/karte\.zip: Keine LabRadar-Serien gefunden/);
+  });
+
+  it("ordnet ausgewählte Serien einer Laborierung zu und nimmt es auf Wunsch zurück", async () => {
+    const patches: { url: string; body: Record<string, unknown> }[] = [];
+    fakeFetch((url, init) => {
+      if (url === "/api/series?unassigned=true") return jsonRes([freeSeries(1), freeSeries(2)]);
+      const m = url.match(/^\/api\/series\/(\d+)$/);
+      if (m && init?.method === "PATCH") {
+        patches.push({ url, body: JSON.parse(String(init.body)) });
+        return jsonRes(freeSeries(Number(m[1]) - 20));
+      }
+      return undefined;
+    });
+    mount(<ImportView />);
+    fireEvent.click(await screen.findByLabelText("Serien wählen Serie 1"));
+    fireEvent.click(screen.getByLabelText("Serien wählen Serie 2"));
+    expect(screen.getByText("2 ausgewählt")).toBeTruthy();
+    const assign = screen.getByRole("button", { name: /^Zuordnen/ }) as HTMLButtonElement;
+    expect(assign.disabled).toBe(true); // ohne Ziel
+    fireEvent.change(screen.getByLabelText("Laborierung zuordnen"), { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Zuordnen/ }));
+    await screen.findByText(/2 Serien zugeordnet zu „Alpha-Last"/);
+    expect(patches.map((p) => [p.url, p.body])).toEqual([["/api/series/21", { load_id: 3 }], ["/api/series/22", { load_id: 3 }]]);
+    fireEvent.click(screen.getByRole("button", { name: "Rückgängig" }));
+    await waitFor(() => expect(patches).toHaveLength(4));
+    expect(patches.slice(2).map((p) => p.body)).toEqual([{ load_id: null }, { load_id: null }]);
+  });
+
+  it("löscht ausgewählte Serien nur nach Rückfrage (Papierkorb)", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fakeFetch((url, init) => {
+      if (init?.method === "DELETE") return new Response(null, { status: 204 });
+      return url === "/api/series?unassigned=true" ? jsonRes([freeSeries(1), freeSeries(2)]) : undefined;
+    });
+    mount(<ImportView />);
+    fireEvent.click(await screen.findByLabelText("Alle auswählen"));
+    fireEvent.click(screen.getByRole("button", { name: /^Löschen \(2\)/ }));
+    expect(confirmSpy.mock.calls[0][0]).toContain("Papierkorb");
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false);
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(screen.getByRole("button", { name: /^Löschen \(2\)/ }));
+    await waitFor(() => expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["/api/series/21", "/api/series/22"]));
+  });
+});
+
+describe("Laborierung: Formular und Zuordnung", () => {
+  const base = (url: string) => {
+    if (url === "/api/loads/5") return jsonRes({ ...load(5, "Leiter", null, null), series: [], parent: null, variants: [] });
+    if (url.startsWith("/api/series")) return jsonRes([]);
+    if (url === "/api/weapons") return jsonRes([]);
+    return undefined;
+  };
+
+  it("legt eine neue Laborierung an: Zahlen mit Komma, leere Felder als null", async () => {
+    const posts: Record<string, unknown>[] = [];
+    fakeFetch((url, init) => {
+      if (url === "/api/loads" && init?.method === "POST") {
+        posts.push(JSON.parse(String(init.body)));
+        return jsonRes(load(9, "Neu", null, null), 201);
+      }
+      return url === "/api/weapons" ? jsonRes([]) : undefined;
+    });
+    const view = mount(<LoadView id={null} />);
+    const name = (await screen.findAllByRole("textbox"))[0] as HTMLInputElement;
+    fireEvent.input(name, { target: { value: "  Neu  " } });
+    const charge = view.container.querySelector("input[inputmode=decimal]") as HTMLInputElement;
+    fireEvent.input(charge, { target: { value: "42,5" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() => expect(posts).toHaveLength(1));
+    expect(posts[0]).toMatchObject({ name: "Neu", trial_type: "single", weapon_id: null, status: null });
+    expect(Object.values(posts[0]).includes(42.5)).toBe(true);
+    expect(posts[0].notes).toBeNull();
+    await waitFor(() => expect(window.location.hash).toBe("#/load/9"));
+  });
+
+  it("speichert nicht bei ungültiger Zahl und markiert das Feld", async () => {
+    fakeFetch((url) => (url === "/api/weapons" ? jsonRes([]) : undefined));
+    const view = mount(<LoadView id={null} />);
+    const [name] = (await screen.findAllByRole("textbox")) as HTMLInputElement[];
+    fireEvent.input(name, { target: { value: "X" } });
+    const num = view.container.querySelector("input[inputmode=decimal]") as HTMLInputElement;
+    fireEvent.input(num, { target: { value: "0x10" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await screen.findByText("Ungültige Zahl");
+    expect(num.className).toContain("bad");
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("verlangt einen Namen", async () => {
+    fakeFetch((url) => (url === "/api/weapons" ? jsonRes([]) : undefined));
+    mount(<LoadView id={null} />);
+    await screen.findAllByRole("textbox");
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    expect((await screen.findByRole("alert")).textContent).toBe("Name");
+    expect(calls.some((c) => c.method === "POST")).toBe(false);
+  });
+
+  it("wendet das Gewicht der Laborierung nur nach Rückfrage an", async () => {
+    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
+    fakeFetch((url, init) => {
+      if (url.startsWith("/api/loads/5/apply-weight") && init?.method === "POST") return jsonRes({ series: 2, weight_override_g: 11.66 });
+      return base(url);
+    });
+    mount(<LoadView id={5} />);
+    const button = await screen.findByRole("button", { name: /Gewicht der Laborierung anwenden/ });
+    fireEvent.click(button);
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(calls.some((c) => c.url.includes("apply-weight"))).toBe(false);
+    confirmSpy.mockReturnValue(true);
+    fireEvent.click(button);
+    await waitFor(() => expect(calls.some((c) => c.method === "POST" && c.url === "/api/loads/5/apply-weight")).toBe(true));
   });
 });

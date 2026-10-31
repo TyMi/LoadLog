@@ -25,6 +25,8 @@ _DE = {
     "delta_avg": "Δ Ø", "trigger": "Trigger", "assigned": "Zugeordnet", "load_col": "Laborierung",
     "disclaimer": "Aufzeichnung eigener Messwerte, keine Ladedaten und keine Ladeempfehlung. Ladedaten nur aus aktuellen Herstellerquellen; die Verantwortung liegt beim Wiederlader. Berechnete Werte (Energie, Impuls, BC) sind Näherungen. Bei Doppler-Trigger ist V0 nicht die Mündungsgeschwindigkeit.",
     "aria_track": "Geschwindigkeitsverläufe aller Schüsse der Serie",
+    "aria_sequence": "V0 über die Schussfolge der Serie mit gleitendem Mittelwert und Trend",
+    "moving_avg": "Gleitender Mittelwert ({n} Schüsse)", "trend_per_shot": "je Schuss", "sequence_title": "V0 über die Schussfolge",
     "aria_strip": "V0 aller Schüsse je Serie als Punktewolke mit Mittelwert",
     "aria_ladder": "Mittelwert und Streuung der Serien über dem variierten Wert",
 }
@@ -50,6 +52,8 @@ _EN = {
     "delta_avg": "Δ avg", "trigger": "Trigger", "assigned": "Assigned", "load_col": "Load",
     "disclaimer": "Record of your own measurements, not load data and not a load recommendation. Use load data only from current manufacturer sources; the reloader is responsible. Calculated values (energy, impulse, BC) are approximations. With Doppler trigger, V0 is not the muzzle velocity.",
     "aria_track": "Velocity tracks of all shots in the series",
+    "aria_sequence": "V0 over the shot sequence of the series with moving average and trend",
+    "moving_avg": "Moving average ({n} shots)", "trend_per_shot": "per shot", "sequence_title": "V0 over the shot sequence",
     "aria_strip": "V0 of all shots per series as dot plot with average",
     "aria_ladder": "Average and spread of the series over the varied value",
 }
