@@ -477,6 +477,12 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         lang, units, theme = opts(lang, units, theme)
         return svg(charts.sequence_chart(db.get_series(sid), window=window, units=units, lang=lang, theme=theme))
 
+    @app.get("/api/charts/series/{sid}/energy.svg")
+    def chart_energy(sid: int, lang: str = "de", units: str = "si", theme: str = "dark"):
+        """Mittlere Energie über die Distanz (Mündung und Messdistanzen) mit ±1 SD."""
+        lang, units, theme = opts(lang, units, theme)
+        return svg(charts.energy_chart(db.get_series(sid), units=units, lang=lang, theme=theme))
+
     @app.get("/api/charts/compare.svg")
     def chart_compare(ids: str, trend: bool = True, lang: str = "de", units: str = "si", theme: str = "dark"):
         lang, units, theme = opts(lang, units, theme)

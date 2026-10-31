@@ -211,6 +211,7 @@ export const urls = {
     `/api/charts/series/${id}.svg?${q({ ...o, theme: "dark" })}`,
   sequenceChart: (id: number, o: { window: number; lang: Lang; units: Units }) =>
     `/api/charts/series/${id}/sequence.svg?${q({ ...o, theme: "dark" })}`,
+  energyChart: (id: number, o: { lang: Lang; units: Units }) => `/api/charts/series/${id}/energy.svg?${q({ ...o, theme: "dark" })}`,
   compareChart: (ids: number[], o: { trend: boolean; lang: Lang; units: Units }) =>
     `/api/charts/compare.svg?${q({ ids: ids.join(","), ...o, theme: "dark" })}`,
   ladderChart: (id: number, o: { by: "charge" | "seating"; lang: Lang; units: Units }) =>

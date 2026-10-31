@@ -900,6 +900,13 @@ export function SeriesView({ id }: { id: number }) {
           <SvgChart url={urls.sequenceChart(id, { window: windowN, lang, units })} />
         </section>
       )}
+      {data.shots.length > 0 && data.shots[0].distances_m.length > 0 && (
+        <section class="panel">
+          <h2>{t("energyTitle")}</h2>
+          <div class="muted small">{t("energyHint")}</div>
+          <SvgChart url={urls.energyChart(id, { lang, units })} />
+        </section>
+      )}
       <div class="sidebar-layout">
         <section class="panel main" aria-label={t("shots")}>
           <h2>{t("shots")}</h2>

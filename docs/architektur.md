@@ -66,6 +66,7 @@ Fehler: `{"detail": {"code", "message", "params"}}` (Meldungscodes in `messages.
 | | `PUT /api/series/{id}/shots/{n}/excluded` | Schuss ausschließen oder wieder einbeziehen (liefert die ganze Serie) |
 | | `GET /api/compare?ids=` | Kennzahlen und Trend mehrerer Serien (1 bis 60) |
 | Diagramme (SVG) | `GET /api/charts/series/{id}.svg[?sel=]` | Geschwindigkeit über Distanz, optional mit hervorgehobenem Schuss |
+| | `GET /api/charts/series/{id}/energy.svg` | Mittlere Energie über die Distanz (Mündung und Messdistanzen) mit ±1 SD |
 | | `GET /api/charts/series/{id}/sequence.svg[?window=]` | V0 über die Schussfolge mit gleitendem Mittelwert (Fenster 2 bis 10) und Trend |
 | | `GET /api/charts/compare.svg?ids=[&trend=]` | Serienvergleich |
 | | `GET /api/charts/ladder/{id}.svg?by=` | Ladeleiter bzw. Setztiefe |

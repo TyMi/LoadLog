@@ -2,6 +2,10 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.13
+
+- **Energie über Distanz:** Neues Diagramm in der Serienansicht und im PDF-Bericht der Serie: mittlere Energie an der Mündung und an den Messdistanzen mit ±1 SD und Werten an den Punkten (ausgeschlossene Schüsse zählen nicht; Achse an die Daten angepasst). Schnittstelle `GET /api/charts/series/{id}/energy.svg`.
+
 ## 0.0.12
 
 - **V0 über die Schussfolge:** Neues Diagramm in der Serienansicht und im PDF-Bericht der Serie: V0 je Schuss in der Reihenfolge, mit gleitendem Mittelwert (Fenster 2, 3, 5 oder 7 Schüsse, ausgeschlossene Schüsse zählen nicht) und linearem Trend je Schuss. Schnittstelle `GET /api/charts/series/{id}/sequence.svg?window=`.

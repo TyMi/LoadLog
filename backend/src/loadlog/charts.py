@@ -6,7 +6,7 @@ from xml.sax.saxutils import escape
 from . import i18n
 from .db import SeriesRecord
 from .stats import Stats, linear_fit
-from .units import d_out, fmt, unit_names, v_out
+from .units import d_out, e_out, fmt, unit_names, v_out
 
 PALETTES = {
     "dark": {"bg": "#171e27", "grid": "#2a3646", "axis": "#3b4a5e", "text": "#a3b0c0",
@@ -175,6 +175,52 @@ def sequence_chart(rec: SeriesRecord, *, window: int = 3, units: str = "si", lan
         else:
             out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="{p["line"]}"><title>{escape(tip)}</title></circle>')
     return _svg("".join(out), p, i18n.t(lang, "aria_sequence"), theme)
+
+
+def energy_profile(shots) -> list[dict]:
+    """Energie über die Distanz aus den gewerteten Schüssen: je Distanz (0 = Mündung) Mittelwert, SD und Zahl der Schüsse, in SI."""
+    cols: dict[float, list[float]] = {}
+    for sh in shots:
+        if sh.excluded:
+            continue
+        cols.setdefault(0.0, []).append(sh.energy0_j)
+        for d, e in zip(sh.distances_m, sh.energies_j, strict=False):
+            if e is not None and math.isfinite(e):
+                cols.setdefault(round(d, 2), []).append(e)
+    out = []
+    for d in sorted(cols):
+        vals = cols[d]
+        mean = sum(vals) / len(vals)
+        sd = math.sqrt(sum((v - mean) ** 2 for v in vals) / (len(vals) - 1)) if len(vals) > 1 else None
+        out.append({"distance_m": d, "mean_j": mean, "sd_j": sd, "n": len(vals)})
+    return out
+
+
+def energy_chart(rec: SeriesRecord, *, units: str = "si", lang: str = "de", theme: str = "dark") -> str:
+    """Mittlere Energie über die Distanz mit ±1 SD (die Energie wird aus Gewicht und Geschwindigkeit berechnet)."""
+    p, un = PALETTES[theme], unit_names(units)
+    prof = [x for x in energy_profile(rec.shots) if x["mean_j"] > 0]
+    if len(prof) < 2:
+        return _empty(lang, theme)
+    xs = [d_out(x["distance_m"], units) for x in prof]
+    means = [e_out(x["mean_j"], units) for x in prof]
+    lows = [e_out(x["mean_j"] - (x["sd_j"] or 0), units) for x in prof]
+    highs = [e_out(x["mean_j"] + (x["sd_j"] or 0), units) for x in prof]
+    span = (max(highs) - min(lows)) or max(means) * 0.05  # Achse an die Daten anpassen (der Verlauf ist sonst eine flache Linie), Platz für die Beschriftung
+    f = _Frame(0, max(xs), min(lows) - span * 0.1, max(highs) + span * 0.25, p, lang,
+               f"{i18n.t(lang, 'distance')} ({un['d']})", f"{i18n.t(lang, 'energy_axis')} ({un['e']})")
+    out = [f.axes()]
+    band_top = " ".join(f"{f.x(x):.1f},{f.y(h):.1f}" for x, h in zip(xs, highs, strict=True))
+    band_bot = " ".join(f"{f.x(x):.1f},{f.y(lo):.1f}" for x, lo in reversed(list(zip(xs, lows, strict=True))))
+    out.append(f'<polygon points="{band_top} {band_bot}" fill="{p["band"]}" opacity="0.18"/>')
+    out.append(f'<polyline points="{" ".join(f"{f.x(x):.1f},{f.y(m):.1f}" for x, m in zip(xs, means, strict=True))}" '
+               f'fill="none" stroke="{p["sel"]}" stroke-width="2.5"/>')
+    for x, m, pt in zip(xs, means, prof, strict=True):
+        tip = (f"{fmt(x, 0, lang)} {un['d']}: Ø {fmt(m, 0, lang)} {un['e']}" + (f" ± {fmt(e_out(pt['sd_j'], units), 0, lang)}" if pt["sd_j"] is not None else "")
+               + f" ({pt['n']} {i18n.t(lang, 'shots')})")
+        out.append(f'<circle cx="{f.x(x):.1f}" cy="{f.y(m):.1f}" r="4.5" fill="{p["sel"]}"><title>{escape(tip)}</title></circle>')
+        out.append(f'<text x="{f.x(x):.1f}" y="{f.y(m) - 9:.1f}" fill="{p["fg"]}" font-size="11" text-anchor="middle">{fmt(m, 0, lang)}</text>')
+    return _svg("".join(out), p, i18n.t(lang, "aria_energy"), theme)
 
 
 def strip_chart(columns: list[tuple[str, SeriesRecord, Stats]], *, trend: bool = True, units: str = "si",
