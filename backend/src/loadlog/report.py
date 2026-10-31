@@ -66,7 +66,7 @@ def _stats_html(st: Stats, total: int, units: str, lang: str) -> str:
 def _wrap(title: str, subtitle: str, body: str, lang: str) -> str:
     return _env.from_string(_BASE).render(
         lang=lang, title=title, subtitle=subtitle, body=body, css=_CSS, T=i18n.TEXTS[lang],
-        now=datetime.now().strftime("%d.%m.%Y %H:%M" if lang == "de" else "%Y-%m-%d %H:%M"),
+        now=datetime.now().strftime("%d.%m.%Y %H:%M" if lang == "de" else "%d/%m/%Y %H:%M"),
     )
 
 
@@ -104,7 +104,7 @@ def date_range(shots, lang: str) -> str:
     days = sorted({s.taken_at.date() for s in shots})
     if not days:
         return "–"
-    f = (lambda d: d.strftime("%d.%m.%Y")) if lang == "de" else (lambda d: d.strftime("%Y-%m-%d"))
+    f = (lambda d: d.strftime("%d.%m.%Y")) if lang == "de" else (lambda d: d.strftime("%d/%m/%Y"))
     return f(days[0]) if len(days) == 1 else f"{f(days[0])} – {f(days[-1])}"
 
 

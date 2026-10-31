@@ -207,6 +207,30 @@ describe("Laborierung: Ladeleiter", () => {
     await waitFor(() => expect(view.container.querySelector(".stat-groups")).toBeTruthy());
     expect(view.container.textContent).not.toContain("fassen alle Stufen");
   });
+  it("Import in die Laborierung: vorhandene Serien nur auf Wunsch zuordnen", async () => {
+    const posts: string[] = [];
+    fakeFetch((url, init) => {
+      if (url.startsWith("/api/import") && init?.method === "POST") {
+        posts.push(url);
+        return new Response(JSON.stringify({ imported: [], skipped: 2, assigned: 2, warnings: [], load_id: 5 }), { headers: { "content-type": "application/json" } });
+      }
+      return detail("single")(url);
+    });
+    const view = mount(<LoadView id={5} />);
+    const box = (await screen.findByLabelText("Vorhandene Serien auch dieser Laborierung zuordnen")) as HTMLInputElement;
+    const pick = () => {
+      const input = view.container.querySelector('input[type="file"][multiple]') as HTMLInputElement;
+      Object.defineProperty(input, "files", { value: [new File(["x"], "karte.zip")], configurable: true });
+      fireEvent.change(input);
+    };
+    pick();
+    await waitFor(() => expect(posts).toEqual(["/api/import?load_id=5"]));
+    fireEvent.click(box);
+    pick();
+    await waitFor(() => expect(posts).toHaveLength(2));
+    expect(posts[1]).toBe("/api/import?load_id=5&assign_existing=true");
+    await screen.findByText(/2 vorhandene zugeordnet/);
+  });
 });
 
 describe("Einstellungen", () => {

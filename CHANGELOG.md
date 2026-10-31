@@ -2,6 +2,12 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.9
+
+- **Englisch durchgängig im britischen Format:** PDF-Berichte und CSV-Export zeigen auf Englisch das Datum als `dd/mm/yyyy` (Kopfzeile des Berichts mit Uhrzeit `dd/mm/yyyy hh:mm`); die Oberfläche tat das schon. Deutsch unverändert `tt.mm.jjjj`. Das ISO-Datum der Version 0.0.8 entfällt.
+- **Import in eine Laborierung:** Neues Häkchen *Vorhandene Serien auch dieser Laborierung zuordnen* (standardmäßig aus). Serien, die LoadLog schon hat, werden dann zusätzlich in die Laborierung gelegt (auch aus einer GRT-Datei oder von der SD-Karte erkannt), statt übersprungen zu werden; die Meldung nennt sie. Schnittstelle: `POST /api/import?load_id=&assign_existing=true`, Antwort mit `assigned`.
+- **CI:** Neuer Workflow `audit.yml` (wöchentlich, von Hand und bei Änderung der Sperrdateien) prüft die Abhängigkeiten mit `pip-audit` und `npm audit`. Er ist nur meldend und kein Pflicht-Check.
+
 ## 0.0.8
 
 - **Englische PDF-Berichte:** Das Datum der Serien steht wie „Created“ und der CSV-Export als `yyyy-mm-dd` (bisher `dd/mm/yyyy`); die Oberfläche zeigt auf Englisch weiterhin `dd/mm/yyyy`.

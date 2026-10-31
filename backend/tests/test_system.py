@@ -64,7 +64,7 @@ def test_csv_export_series_de_and_en(client):
     assert re.search(r";\d+,\d;", lines[1])  # Dezimalkomma
     assert re.search(r";\d{2}\.\d{2}\.\d{4};\d+;\d{2}:\d{2}:\d{2};", lines[1])  # deutsches Datum tt.mm.jjjj, Uhrzeit hh:mm:ss
     en = client.get(f"/api/export/series/{sid}.csv?lang=en&units=imp").text.lstrip("﻿").split("\r\n")
-    assert en[0].startswith("Load,Series,") and "fps" in en[0] and re.search(r",\d+\.\d,", en[1]) and re.search(r",\d{4}-\d{2}-\d{2},", en[1])
+    assert en[0].startswith("Load,Series,") and "fps" in en[0] and re.search(r",\d+\.\d,", en[1]) and re.search(r",\d{2}/\d{2}/\d{4},", en[1])
 
 
 def test_csv_export_load_contains_all_series(client):
@@ -177,5 +177,5 @@ def test_report_dates_are_consistent_per_language(client):
     sid = client.post("/api/import", files={"file": ("s.zip", synth.make_zip(seed=5))}).json()["imported"][0]["id"]
     de = client.get(f"/api/reports/series/{sid}?lang=de&format=html").text
     en = client.get(f"/api/reports/series/{sid}?lang=en&format=html").text
-    assert "15.01.2030" in de and "2030-01-15" not in de
-    assert "2030-01-15" in en and "15/01/2030" not in en and "15.01.2030" not in en  # ISO wie im Kopf ("Created") und im CSV
+    assert "15.01.2030" in de and "15/01/2030" not in de
+    assert "15/01/2030" in en and "15.01.2030" not in en and "2030-01-15" not in en  # englisch durchgängig im britischen Format

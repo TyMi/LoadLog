@@ -37,6 +37,7 @@ _DE = {
     "grt_weight_missing": "Geschossgewicht fehlt in der Datei: MIP und Energie sind nicht berechenbar",
     # Duplikate
     "duplicate_series": "{label} ist bereits als Serie {id} vorhanden und wurde übersprungen",
+    "assigned_existing": "{label} war schon als Serie {id} vorhanden und wurde der Laborierung zugeordnet",
     "upgraded_series": "{label}: bestehende Serie {id} mit den genaueren Messdaten der SD-Karte aktualisiert",
     # API
     "not_found": "Nicht gefunden: {what}",

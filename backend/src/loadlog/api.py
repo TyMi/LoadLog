@@ -336,7 +336,7 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
 
     # ---- Import und Serien ----
     @app.post("/api/import")
-    async def import_card(file: UploadFile, load_id: int | None = None):
+    async def import_card(file: UploadFile, load_id: int | None = None, assign_existing: bool = False):
         if load_id is not None:
             db.get_load(load_id)  # 404, wenn die Laborierung fehlt
         data = bytearray()
@@ -345,17 +345,18 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
             if len(data) > MAX_UPLOAD_BYTES:
                 raise fail(413, "upload_too_large", max=MAX_UPLOAD_BYTES // (1024 * 1024))
         if looks_like_grt(bytes(data)):
-            return import_grt(bytes(data), load_id)
+            return import_grt(bytes(data), load_id, assign_existing)
         try:
             result = import_zip(bytes(data))
         except ImportFailure as exc:
             raise coded(400, exc) from exc
         events: list = []
-        _, saved = db.import_batch(result.series, load_id=load_id, events=events)
+        _, saved = db.import_batch(result.series, load_id=load_id, events=events, assign_existing=assign_existing)
         result.warnings.extend(dup_notes(events))
         return {
             "imported": [{"id": sid, "number": s.number} for (sid, new), s in zip(saved, result.series, strict=True) if new],
             "skipped": sum(1 for _, new in saved if not new),
+            "assigned": sum(1 for e in events if e[0] == "assigned"),
             "warnings": [note_json(w) for w in result.warnings],
             "load_id": load_id,
         }
@@ -364,10 +365,11 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         out = []
         for kind, s, existing in events:
             label = s.name or Note("series_label", no=s.number)
-            out.append(Note("upgraded_series" if kind == "upgraded" else "duplicate_series", label=label, id=existing))
+            code = {"upgraded": "upgraded_series", "assigned": "assigned_existing"}.get(kind, "duplicate_series")
+            out.append(Note(code, label=label, id=existing))
         return out
 
-    def import_grt(data: bytes, into_load: int | None) -> dict:
+    def import_grt(data: bytes, into_load: int | None, assign_existing: bool = False) -> dict:
         try:
             grt = parse_grtload(data)
         except GrtError as exc:
@@ -375,7 +377,7 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         # eine Transaktion: neue Laborierung (nur ohne Ziel-Laborierung und nur, wenn es neue Serien gibt) und Serien
         events: list = []
         load_id, saved = db.import_batch(grt.series, load_data=None if into_load is not None else grt.load, load_id=into_load,
-                                         events=events)
+                                         events=events, assign_existing=assign_existing)
         grt.warnings.extend(dup_notes(events))
         if into_load is not None:  # leere Kopfdaten der Laborierung ergänzen, vorhandene nie überschreiben
             current = db.get_load(into_load)
@@ -385,6 +387,7 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         return {
             "imported": [{"id": sid, "number": s.number} for (sid, new), s in zip(saved, grt.series, strict=True) if new],
             "skipped": sum(1 for _, new in saved if not new),
+            "assigned": sum(1 for e in events if e[0] == "assigned"),
             "warnings": [note_json(w) for w in grt.warnings],
             "load_id": load_id,
         }

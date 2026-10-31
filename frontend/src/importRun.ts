@@ -6,12 +6,13 @@ export interface Aggregate extends ImportResult {
   sources: number;
 }
 
-export const emptyAggregate = (): Aggregate => ({ imported: [], skipped: 0, warnings: [], load_id: null, errors: [], sources: 0 });
+export const emptyAggregate = (): Aggregate => ({ imported: [], skipped: 0, assigned: 0, warnings: [], load_id: null, errors: [], sources: 0 });
 
 export function merge(into: Aggregate, r: ImportResult): Aggregate {
   return {
     imported: [...into.imported, ...r.imported],
     skipped: into.skipped + r.skipped,
+    assigned: (into.assigned ?? 0) + (r.assigned ?? 0),
     warnings: [...into.warnings, ...r.warnings],
     load_id: r.load_id ?? into.load_id,
     errors: into.errors,
@@ -20,12 +21,12 @@ export function merge(into: Aggregate, r: ImportResult): Aggregate {
 }
 
 /** Quellen nacheinander hochladen; ein Fehler bei einer Quelle stoppt die übrigen nicht. */
-export async function runImport(sources: Source[], loadId?: number, onProgress?: (done: number, total: number) => void, noFiles?: (name: string) => string): Promise<Aggregate> {
+export async function runImport(sources: Source[], loadId?: number, onProgress?: (done: number, total: number) => void, noFiles?: (name: string) => string, assignExisting = false): Promise<Aggregate> {
   let agg = emptyAggregate();
   let done = 0;
   for (const s of sources) {
     try {
-      agg = merge(agg, await api.importZip(await toUpload(s, noFiles), loadId));
+      agg = merge(agg, await api.importZip(await toUpload(s, noFiles), loadId, assignExisting));
     } catch (e) {
       agg = { ...agg, errors: [...agg.errors, `${s.name}: ${(e as Error).message}`] };
     }

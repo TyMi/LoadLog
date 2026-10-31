@@ -249,10 +249,11 @@ class Database:
             return self._save_series(c, series, None)
 
     def import_batch(self, series: list[Series], load_data: dict | None = None, load_id: int | None = None,
-                     events: list | None = None) -> tuple[int | None, list[tuple[int, bool]]]:
+                     events: list | None = None, assign_existing: bool = False) -> tuple[int | None, list[tuple[int, bool]]]:
         """Alles-oder-nichts-Import in EINER Transaktion: optional neue Laborierung (load_data) anlegen, alle neuen
         Serien dieser oder der übergebenen Laborierung zuordnen. Bei einem Fehler bleibt die Datenbank unverändert.
-        `events` sammelt (art, serie, vorhandene_id) für erkannte Duplikate ("duplicate") und aufgewertete ("upgraded")."""
+        `events` sammelt (art, serie, vorhandene_id) für erkannte Duplikate ("duplicate"), aufgewertete ("upgraded") und, mit
+        `assign_existing`, bereits vorhandene Serien, die der Laborierung zugeordnet wurden ("assigned")."""
         with self.conn() as c:
             if load_id is not None and c.execute("SELECT 1 FROM loads WHERE id = ?", (load_id,)).fetchone() is None:
                 raise NotFound(f"loads {load_id}")
@@ -263,7 +264,7 @@ class Database:
                 values["created_at"] = datetime.now().isoformat(timespec="seconds")
                 cols, marks = ", ".join(values), ", ".join("?" for _ in values)
                 load_id = int(c.execute(f"INSERT INTO loads ({cols}) VALUES ({marks})", list(values.values())).lastrowid)  # noqa: S608
-            return load_id, [self._save_series(c, s, load_id, events) for s in series]
+            return load_id, [self._save_series(c, s, load_id, events, assign_existing) for s in series]
 
     # Toleranzen für "dieselbe Serie aus anderer Quelle" (SD-Karte und GRT-Datei): GRT rundet V0 auf 1 m/s
     DUP_SECONDS = 2
@@ -286,11 +287,20 @@ class Database:
                 return cand
         return None
 
+    @staticmethod
+    def _assign(c: sqlite3.Connection, series_id: int, load_id: int | None) -> bool:
+        """Legt eine vorhandene Serie in die Laborierung; True, wenn sie dort noch nicht lag."""
+        if load_id is None:
+            return False
+        return c.execute("INSERT OR IGNORE INTO series_loads (series_id, load_id) VALUES (?, ?)", (series_id, load_id)).rowcount > 0
+
     def _save_series(self, c: sqlite3.Connection, series: Series, load_id: int | None,
-                     events: list | None = None) -> tuple[int, bool]:
+                     events: list | None = None, assign_existing: bool = False) -> tuple[int, bool]:
         key = self.source_key(series)
         row = c.execute("SELECT id FROM series WHERE source_key = ?", (key,)).fetchone()
         if row:
+            if assign_existing and self._assign(c, int(row["id"]), load_id) and events is not None:
+                events.append(("assigned", series, int(row["id"])))
             return int(row["id"]), False
         dup = self._match(c, series)
         if dup is not None:
@@ -298,8 +308,14 @@ class Database:
             upgrade = dup["device_id"] is None and series.device_id is not None
             if upgrade:
                 self._upgrade(c, int(dup["id"]), series, key)
+            assigned = assign_existing and self._assign(c, int(dup["id"]), load_id)
             if events is not None:
-                events.append(("upgraded" if upgrade else "duplicate", series, int(dup["id"])))
+                if upgrade:
+                    events.append(("upgraded", series, int(dup["id"])))
+                if assigned:
+                    events.append(("assigned", series, int(dup["id"])))
+                elif not upgrade:
+                    events.append(("duplicate", series, int(dup["id"])))
             return int(dup["id"]), False
         cur = c.execute(
             "INSERT INTO series (number, name, device_id, source_key, imported_at, charge_gr, note) VALUES (?,?,?,?,?,?,?)",
