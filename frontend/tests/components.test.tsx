@@ -190,6 +190,12 @@ describe("Serie: Laborierungen", () => {
     await waitFor(() => expect(calls.some((c) => c.url === "/api/charts/series/7/sequence.svg?window=5&lang=en&units=imp&theme=dark")).toBe(true));
   });
 
+  it("zeigt Energie über Distanz mit Sprache und Einheiten", async () => {
+    mount(<SeriesView id={7} />, { lang: "en", units: "imp" });
+    await screen.findByText("Energy over distance");
+    await waitFor(() => expect(calls.some((c) => c.url === "/api/charts/series/7/energy.svg?lang=en&units=imp&theme=dark")).toBe(true));
+  });
+
   it("Diagramme lassen sich als SVG speichern (Dateiname nach Diagramm)", async () => {
     const names: string[] = [];
     vi.stubGlobal("URL", { ...URL, createObjectURL: () => "blob:x", revokeObjectURL: () => undefined });
@@ -198,12 +204,11 @@ describe("Serie: Laborierungen", () => {
     });
     mount(<SeriesView id={7} />);
     await screen.findByText("V0 über die Schussfolge");
-    await waitFor(() => expect(screen.getAllByRole("button", { name: "Als SVG speichern" })).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Als SVG speichern" })).toHaveLength(3));
     const buttons = screen.getAllByRole("button", { name: "Als SVG speichern" });
-    fireEvent.click(buttons[0]);
-    fireEvent.click(buttons[1]);
-    expect(names).toEqual(["loadlog-series-7.svg", "loadlog-series-7-sequence.svg"]);
-    expect(screen.getAllByRole("button", { name: "Als PNG speichern" })).toHaveLength(2);
+    for (const b of buttons) fireEvent.click(b);
+    expect(names).toEqual(["loadlog-series-7.svg", "loadlog-series-7-sequence.svg", "loadlog-series-7-energy.svg"]);
+    expect(screen.getAllByRole("button", { name: "Als PNG speichern" })).toHaveLength(3);
   });
 
   it("zeigt MIP ohne Nachkommastellen", async () => {

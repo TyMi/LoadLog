@@ -118,6 +118,8 @@ def series_report(rec: SeriesRecord, load: dict | None = None, weapon: dict | No
     st = compute(rec.shots)
     svg = charts.track_chart(rec, units=units, lang=lang, theme="light")
     seq = charts.sequence_chart(rec, units=units, lang=lang, theme="light")
+    energy = charts.energy_chart(rec, units=units, lang=lang, theme="light")
+    has_energy = len(charts.energy_profile(rec.shots)) >= 2
     shots = [{
         "n": s.number, "v0": fmt(v_out(s.v0_ms, units), 1, lang), "e": fmt(e_out(s.energy0_j, units), 0, lang),
         "p": fmt(s.mip, 0, lang),
@@ -152,7 +154,8 @@ def series_report(rec: SeriesRecord, load: dict | None = None, weapon: dict | No
     body = (_load_table(load, weapon, units, lang) + extra + "<h2>" + T["avg"] + "</h2>"
             + _stats_html(st, len(rec.shots), units, lang) + bc_html
             + f'<figure>{svg}<div class="legend">{T["track_title"]}</div></figure>'
-            + (f'<figure>{seq}<div class="legend">{T["sequence_title"]}</div></figure>' if len(rec.shots) > 1 else "") + table)
+            + (f'<figure>{seq}<div class="legend">{T["sequence_title"]}</div></figure>' if len(rec.shots) > 1 else "")
+            + (f'<figure>{energy}<div class="legend">{T["energy_title"]}</div></figure>' if has_energy else "") + table)
     sub = series_label(rec, T) + (f" · {load['name']}" if load else "") + f" · {date_range(rec.shots, lang)}"
     return _wrap(T["report_series"], sub, body, lang)
 
