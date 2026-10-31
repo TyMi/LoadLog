@@ -40,13 +40,32 @@ Löschen einer Serie löscht ihre Schüsse. Import einer Quelle: eine Transaktio
   `TRK/Shot…Track.csv`; Geräteeinheiten aus dem Report-Kopf (fps/yd werden umgerechnet,
   bisher nur mit synthetischen Imperial-Daten getestet).
 
-## API (Auszug)
+## API
 
-`GET/POST /api/loads`, `GET/PUT/DELETE /api/loads/{id}`, `GET /api/loads/{id}/ladder?by=charge|seating`,
-`POST /api/loads/{id}/apply-weight[?clear=true]`, `GET/POST/PUT/DELETE /api/weapons`,
-`POST /api/import[?load_id=]` (SD-Karten-ZIP oder GRT-Datei), `GET /api/series`, `GET/PATCH/DELETE /api/series/{id}`,
-`PUT/DELETE /api/series/{id}/loads/{lid}` (Mehrfachzuordnung), `PUT /api/series/{id}/shots/{n}/excluded`,
-`GET /api/compare?ids=`, Diagramme `/api/charts/...svg`, Berichte `/api/reports/series|load/{id}`, `/api/reports/compare?ids=`
-(`format=pdf|html`), CSV `/api/export/series/{id}.csv`, `/api/export/load/{id}.csv`, `GET /api/system/backup`,
-`POST /api/system/restore` (Kopf `X-LoadLog-Confirm: restore`), `GET /api/health`, Doku unter `/api/docs`.
-Fehler: `{"detail": {"code", "message", "params"}}`.
+Vollständige Liste; die maschinenlesbare Fassung liefert `/api/openapi.json` (Oberfläche unter `/api/docs`). Alle Antworten unter `/api/`
+tragen `Cache-Control: no-store`. `lang` ist `de|en`, `units` ist `si|imp`, `theme` ist `dark` oder `light`.
+Fehler: `{"detail": {"code", "message", "params"}}` (Meldungscodes in `messages.py`, Übersetzungen in `frontend/src/i18n.ts`).
+
+| Bereich | Aufruf | Zweck |
+|---|---|---|
+| Allgemein | `GET /api/health` | Status, Version, Handbuchversion, PDF verfügbar |
+| Einstellungen | `GET/PATCH /api/settings` | Zahl der Sicherheitskopien (`backup_keep`, 1 bis 100) |
+| Waffen | `GET/POST /api/weapons`, `PUT/DELETE /api/weapons/{id}` | Waffen verwalten |
+| Laborierungen | `GET/POST /api/loads`, `GET/PUT/DELETE /api/loads/{id}` | Laborierungen verwalten |
+| | `POST /api/loads/{id}/apply-weight[?clear=true]` | Geschossgewicht auf alle Serien anwenden oder die Überschreibung entfernen |
+| | `GET /api/loads/{id}/ladder?by=charge\|seating` | Datenpunkte der Ladeleiter bzw. des Setztiefen-Tests |
+| Import | `POST /api/import[?load_id=]` | SD-Karten-ZIP oder GRT-Datei (Multipart-Feld `file`) |
+| Serien | `GET /api/series[?unassigned=true&load_id=]` | Liste mit Filter (nicht zugeordnet, einer Laborierung) |
+| | `GET/PATCH/DELETE /api/series/{id}` | Serie mit Schüssen, Laborierungen und BC lesen, ändern, löschen |
+| | `PUT/DELETE /api/series/{id}/loads/{lid}` | Mehrfachzuordnung: Serie zusätzlich in eine Laborierung legen oder herausnehmen |
+| | `PUT /api/series/{id}/shots/{n}/excluded` | Schuss ausschließen oder wieder einbeziehen (liefert die ganze Serie) |
+| | `GET /api/compare?ids=` | Kennzahlen und Trend mehrerer Serien (1 bis 60) |
+| Diagramme (SVG) | `GET /api/charts/series/{id}.svg[?sel=]` | Geschwindigkeit über Distanz, optional mit hervorgehobenem Schuss |
+| | `GET /api/charts/compare.svg?ids=[&trend=]` | Serienvergleich |
+| | `GET /api/charts/ladder/{id}.svg?by=` | Ladeleiter bzw. Setztiefe |
+| Berichte | `GET /api/reports/series/{id}`, `/api/reports/load/{id}`, `/api/reports/compare?ids=` | PDF oder HTML (`format=pdf\|html`), Serienbericht mit optionalem `load_id` |
+| Export | `GET /api/export/series/{id}.csv`, `GET /api/export/load/{id}.csv` | CSV je Schuss, folgt `lang` und `units` |
+| Sicherung | `GET /api/system/backup` | Konsistente Kopie der Datenbank |
+| | `POST /api/system/restore` | Sicherung einspielen (Kopf `X-LoadLog-Confirm: restore`; abschaltbar mit `LOADLOG_ALLOW_RESTORE=0`) |
+| Dokumentation | `GET /api/docs`, `GET /api/openapi.json` | Swagger-Oberfläche (lädt Skripte von einem CDN) und Schema |
+| Handbuch, Oberfläche | `GET /manual/<Major.Minor>/<de\|en>/`, `GET /` | Statische Dateien; ältere Handbuchadressen leiten weiter |

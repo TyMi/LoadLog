@@ -2,6 +2,11 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.8
+
+- **Englische PDF-Berichte:** Das Datum der Serien steht wie „Created“ und der CSV-Export als `yyyy-mm-dd` (bisher `dd/mm/yyyy`); die Oberfläche zeigt auf Englisch weiterhin `dd/mm/yyyy`.
+- **Dokumentation:** `docs/architektur.md` führt jetzt alle Schnittstellen auf (mit Parametern); `CONTRIBUTING.md` legt die Sprache der Dokumentation fest.
+
 ## 0.0.7
 
 Härtung aus der unabhängigen Prüfung.
