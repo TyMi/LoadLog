@@ -136,6 +136,8 @@ export const api = {
     if (!res.ok) throw new ApiError(res.status, errorText(res.status, await res.text()));
     return (await res.json()) as { weapons: number; loads: number; series: number; shots: number };
   },
+  settings: () => req<{ backup_keep: number }>("GET", "/api/settings"),
+  setSettings: (body: { backup_keep: number }) => req<{ backup_keep: number }>("PATCH", "/api/settings", body),
   loads: () => req<Load[]>("GET", "/api/loads"),
   load: (id: number) => req<Load & { weapon: Weapon | null; series: SeriesSummary[] }>("GET", `/api/loads/${id}`),
   createLoad: (d: Partial<LoadData>) => req<Load>("POST", "/api/loads", d),

@@ -476,7 +476,34 @@ class Database:
         finally:
             con.close()
 
-    def restore_from(self, path: str | Path) -> dict:
+    @staticmethod
+    def _data_consistent(c: sqlite3.Connection) -> bool:
+        """Fremdschlüssel stimmen und die JSON-Spalten der Schüsse sind gültige Listen (sonst fielen Leseabfragen dauerhaft aus)."""
+        if c.execute("PRAGMA foreign_key_check").fetchone() is not None:
+            return False
+        for col in ("distances_json", "velocities_json", "energies_json", "track_json"):
+            bad = c.execute(
+                f"SELECT 1 FROM shots WHERE {col} IS NOT NULL AND "  # noqa: S608
+                f"COALESCE(CASE WHEN json_valid({col}) THEN json_type({col}) END, '') <> 'array' LIMIT 1").fetchone()
+            if bad is not None:
+                return False
+        return True
+
+    SAFETY_PREFIX = "vor-wiederherstellung-"
+
+    def prune_safety_copies(self, keep: int) -> int:
+        """Behält die neuesten `keep` Sicherheitskopien unter backups/ und löscht ältere; liefert die Zahl der gelöschten."""
+        if self.path == ":memory:":
+            return 0
+        folder = Path(self.path).parent / "backups"
+        if not folder.is_dir():
+            return 0
+        old = sorted(folder.glob(f"{self.SAFETY_PREFIX}*.sqlite3"))[:-keep] if keep > 0 else []
+        for f in old:
+            f.unlink(missing_ok=True)
+        return len(old)
+
+    def restore_from(self, path: str | Path, keep: int = 5) -> dict:
         """Ersetzt den Inhalt durch die (zuvor geprüfte) Sicherung. Vorher wird der aktuelle Stand neben der Datenbank
         unter backups/ abgelegt. Ältere Sicherungen werden auf das aktuelle Schema gehoben."""
         self.check_backup(path)
@@ -488,7 +515,7 @@ class Database:
             try:
                 self._migrate(con)
                 con.commit()
-                if not self._schema_complete(con):
+                if not self._schema_complete(con) or not self._data_consistent(con):
                     raise CodedError("backup_invalid")
             except sqlite3.Error as exc:
                 raise CodedError("backup_invalid") from exc
@@ -499,6 +526,7 @@ class Database:
                 safety.mkdir(parents=True, exist_ok=True)
                 target = safety / f"vor-wiederherstellung-{datetime.now():%Y%m%d-%H%M%S-%f}.sqlite3"  # eindeutig auch bei zwei Aufrufen je Sekunde
                 self.backup_to(target)
+                self.prune_safety_copies(keep)
             src = sqlite3.connect(f"file:{work}?mode=ro", uri=True)
             try:
                 with self.conn() as c:

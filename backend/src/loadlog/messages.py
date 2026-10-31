@@ -25,7 +25,7 @@ _DE = {
     "csv_bad_row": "Ungültige Zeile in Report: {row}",
     "csv_bad_track": "Ungültige Track-Zeile: {line}",
     # Import: GRT
-    "grt_too_large": "Datei zu groß",
+    "grt_too_large": "Datei zu groß (GRT-Dateien höchstens 10 MB)",
     "grt_doctype": "DOCTYPE/ENTITY nicht erlaubt",
     "grt_bad_xml": "Kein gültiges XML: {reason}",
     "grt_not_grt": "Keine GRT-Datei (GordonsReloadingTool/InnerBallistikInput fehlt)",
@@ -51,6 +51,7 @@ _DE = {
     "ids_count": "1 bis {max} Serien angeben",
     "backup_invalid": "Keine gültige LoadLog-Sicherung (Datei beschädigt oder fremd)",
     "backup_too_new": "Die Sicherung stammt aus einer neueren LoadLog-Version (Schema {version}, unterstützt: {supported})",
+    "restore_disabled": "Wiederherstellen ist auf diesem Server abgeschaltet (LOADLOG_ALLOW_RESTORE)",
     "restore_confirm": "Zum Wiederherstellen ist die Bestätigung nötig",
     "length_required": "Die Anfrage braucht eine Längenangabe (Content-Length)",
     "cross_site_blocked": "Anfrage von einer fremden Webseite abgewiesen",

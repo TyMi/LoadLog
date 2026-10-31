@@ -27,6 +27,7 @@ const SERIES = {
 
 let calls: { method: string; url: string; headers?: Record<string, string> }[];
 let seriesState: typeof SERIES;
+let keepState = 5;
 
 function fakeFetch(extra: (url: string, init?: RequestInit) => Response | undefined = () => undefined) {
   calls = [];
@@ -38,6 +39,11 @@ function fakeFetch(extra: (url: string, init?: RequestInit) => Response | undefi
     const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
     if (url.startsWith("/api/charts/")) return new Response("<svg></svg>", { headers: { "content-type": "image/svg+xml" } });
     if (url === "/api/loads") return json(LOADS);
+    if (url === "/api/settings" && method === "PATCH") {
+      keepState = (JSON.parse(String(init?.body)) as { backup_keep: number }).backup_keep;
+      return json({ backup_keep: keepState });
+    }
+    if (url === "/api/settings") return json({ backup_keep: keepState });
     if (url === "/api/series/7" && method === "GET") return json(seriesState);
     const add = url.match(/^\/api\/series\/7\/loads\/(\d+)$/);
     if (add && method === "PUT") {
@@ -64,6 +70,7 @@ function mount(ui: preact.ComponentChild, o: { lang?: Lang; units?: Units; setLa
 
 beforeEach(() => {
   seriesState = structuredClone(SERIES);
+  keepState = 5;
   localStorage.clear();
   fakeFetch();
 });
@@ -220,6 +227,26 @@ describe("Einstellungen", () => {
     expect(screen.getByText("0.0.1")).toBeTruthy();
     expect(screen.getByRole("link", { name: /Handbuch 0\.0/ }).getAttribute("href")).toBe("/manual/0.0/de/");
     expect(screen.getByRole("link", { name: "Sicherung herunterladen" }).getAttribute("href")).toBe("/api/system/backup");
+  });
+
+  it("zeigt die Zahl der Sicherheitskopien und speichert eine Änderung", async () => {
+    mount(<SettingsView />);
+    const input = (await screen.findByLabelText("Sicherheitskopien behalten")) as HTMLInputElement;
+    expect(input.value).toBe("5");
+    fireEvent.input(input, { target: { value: "8" } });
+    fireEvent.change(input);
+    await screen.findByText("Gespeichert.");
+    expect(keepState).toBe(8);
+    expect(calls.some((c) => c.method === "PATCH" && c.url === "/api/settings")).toBe(true);
+  });
+
+  it("weist ungültige Eingaben für die Zahl der Sicherheitskopien ab", async () => {
+    mount(<SettingsView />);
+    const input = (await screen.findByLabelText("Sicherheitskopien behalten")) as HTMLInputElement;
+    fireEvent.input(input, { target: { value: "2,5" } });
+    fireEvent.change(input);
+    await screen.findByRole("alert");
+    expect(keepState).toBe(5);
   });
 
   const pickFile = (view: ReturnType<typeof mount>) => {

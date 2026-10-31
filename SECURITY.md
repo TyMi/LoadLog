@@ -15,17 +15,22 @@ Solange es kein stabiles Release gibt, wird nur der aktuelle Stand des
 
 ## Betriebshinweise
 
-- LoadLog hat **keine Authentifizierung**. Standardmäßig bindet der Container an
-  `127.0.0.1`. Für den Zugriff aus dem Heimnetz bewusst `LOADLOG_BIND` setzen;
-  für Zugriff aus dem Internet einen Reverse-Proxy mit Anmeldung und TLS davorsetzen.
-- Uploads sind auf 50 MB begrenzt (Sicherungen auf 200 MB, vorab anhand der Anfragegröße geprüft, Uploads ohne Längenangabe mit 411 abgelehnt), ZIPs werden nur im Speicher gelesen
-  (kein Entpacken auf die Platte, Pfade mit `..` werden ignoriert, Größen- und Anzahlgrenzen).
-- Schreibende Anfragen, die der Browser von einer fremden Webseite aus schickt (`Sec-Fetch-Site: cross-site` oder `same-site`), werden
-  abgewiesen. Mit `LOADLOG_ALLOWED_HOSTS` (kommagetrennt) lässt sich die App auf bestimmte Host-Namen beschränken (Schutz vor DNS-Rebinding).
-  Beides ersetzt keine Anmeldung.
+- LoadLog hat **keine Authentifizierung** und soll nur in einem vertrauenswürdigen Netz laufen (Heimnetz, Intranet ohne Zugang von außen).
+  Der Server bindet ohne Angabe an `127.0.0.1`. Im Container lauscht das Programm auf `0.0.0.0`; lokal bleibt es nur durch die Port-Veröffentlichung
+  der mitgelieferten `docker-compose.yml` (`LOADLOG_BIND`, Standard `127.0.0.1`). Ein eigenes `docker run -p 8080:8080` ist für das ganze Netz offen.
+  Für den Zugriff aus dem Netz `LOADLOG_BIND` bewusst setzen und `LOADLOG_ALLOWED_HOSTS` (kommagetrennte Host-Namen, Schutz vor DNS-Rebinding)
+  ausfüllen; ohne diese Angabe warnt der Start im Protokoll. Bei mehreren Nutzern oder nicht vertrauenswürdigen Geräten einen Reverse-Proxy mit
+  Anmeldung und TLS davorsetzen (Host-Kopf unverändert durchreichen oder `X-Forwarded-Host` setzen). Details: Handbuch, Abschnitt
+  „Sicherheit und Netzwerk“.
+- Uploads sind auf 50 MB begrenzt (GRT-Dateien auf 10 MB, Sicherungen auf 200 MB, vorab anhand der Anfragegröße geprüft, Uploads ohne Längenangabe
+  mit 411 abgelehnt), ZIPs werden nur im Speicher gelesen (kein Entpacken auf die Platte, Pfade mit `..` werden ignoriert, Größen- und Anzahlgrenzen).
+- Schreibende Anfragen, die der Browser von einer fremden Webseite aus schickt (`Sec-Fetch-Site: cross-site` oder `same-site`, abweichender `Origin`),
+  werden abgewiesen. Das ersetzt keine Anmeldung. API-Antworten sind nicht zwischenspeicherbar (`Cache-Control: no-store`).
+- Das Wiederherstellen prüft die Datei vollständig (Aufbau, Fremdschlüssel, JSON-Spalten) und legt vorher eine Sicherheitskopie unter `backups/`
+  ab (Anzahl einstellbar, Standard 5). Mit `LOADLOG_ALLOW_RESTORE=0` lässt es sich abschalten.
 - Bei Start über die mitgelieferte `docker-compose.yml` läuft der Container als unprivilegierter Benutzer, mit schreibgeschütztem
-  Dateisystem, ohne zusätzliche Linux-Capabilities und standardmäßig nur auf `127.0.0.1`. Bei einem eigenen `docker run` diese
-  Einstellungen selbst setzen.
+  Dateisystem (`/tmp` ohne `exec`), ohne zusätzliche Linux-Capabilities, mit Grenzen für Speicher und Prozesse und standardmäßig nur auf
+  `127.0.0.1`. Bei einem eigenen `docker run` diese Einstellungen selbst setzen.
 
 ## Datenschutz
 

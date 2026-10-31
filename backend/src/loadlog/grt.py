@@ -17,7 +17,7 @@ from .importer import drop_insane
 from .messages import CodedError, Note
 from .models import GRAMS_PER_GRAIN, Series, Shot, TrackPoint
 
-MAX_GRT_BYTES = 50 * 1024 * 1024
+MAX_GRT_BYTES = 10 * 1024 * 1024  # echte Dateien sind ~1,5 MB (mit eingebetteten Bildern); das XML-Parsen braucht ein Vielfaches an Speicher
 _KG_PER_GRAIN = GRAMS_PER_GRAIN / 1000
 _DATE_FORMATS = ("%m-%d-%Y %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%d.%m.%Y %H:%M:%S")
 

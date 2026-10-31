@@ -25,13 +25,16 @@ Löschen einer Serie löscht ihre Schüsse. Import einer Quelle: eine Transaktio
 - **Statistik serverseitig** (`stats.py`, ohne ausgeschlossene Schüsse, SD mit n−1), dazu Impuls (MIP) und BC (`ballistics.py`,
   nur in der Serienansicht, nicht zwischengespeichert).
 - **Meldungen mit Code** (`messages.py`): Server liefert `{code, message, params}`, die Oberfläche übersetzt DE/EN.
-- **Sicherung** über die SQLite-Backup-API; Wiederherstellen prüft die Datei (Integrität, Tabellen, keine Trigger/Views, Schema nicht neuer),
-  legt den alten Stand unter `backups/` ab und hebt ältere Sicherungen per Migration an.
+- **Sicherung** über die SQLite-Backup-API; Wiederherstellen prüft die Datei (Integrität, Tabellen, keine Trigger/Views, Schema nicht neuer;
+  nach der Migration Fremdschlüssel und JSON-Spalten), legt den alten Stand unter `backups/` ab und hebt ältere Sicherungen per Migration an.
+  Es bleiben die neuesten N Sicherheitskopien (Einstellung `backup_keep`, Standard 5, in `settings.json` neben der Datenbank, in der Oberfläche
+  unter Einstellungen). `LOADLOG_ALLOW_RESTORE=0` schaltet das Wiederherstellen ab.
 - **Version** dreistufig, Handbuch unter `/manual/<Major.Minor>/`.
 - **Ladeleitern/Setztiefen** sind nur Darstellung: V0-Ø ± SD über Pulvermenge bzw. Setztiefe der Serien.
 - **Kein Login**; Container bindet standardmäßig an 127.0.0.1, läuft als Nicht-root, read-only,
-  ohne Capabilities. Uploads ≤ 50 MB (Sicherungen ≤ 200 MB, vorab per Anfragegröße geprüft), ZIP nur im Speicher gelesen.
-  Schreibende Anfragen von fremden Webseiten (`Sec-Fetch-Site`) werden abgewiesen, optional `LOADLOG_ALLOWED_HOSTS` gegen DNS-Rebinding.
+  ohne Capabilities. Uploads ≤ 50 MB (GRT ≤ 10 MB, Sicherungen ≤ 200 MB, vorab per Anfragegröße geprüft), ZIP nur im Speicher gelesen.
+  Schreibende Anfragen von fremden Webseiten (`Sec-Fetch-Site`, `Origin`) werden abgewiesen, optional `LOADLOG_ALLOWED_HOSTS` gegen DNS-Rebinding
+  (ohne die Einstellung warnt der Start bei Bindung an das Netz). API-Antworten tragen `Cache-Control: no-store`. Compose begrenzt Speicher und Prozesse.
 - **GRT-Import** (`grt.py`, Format in `grt-format.md`): legt Laborierung und Serien an; DOCTYPE/ENTITY werden abgelehnt.
 - **Import**: `.lbr` bevorzugt (volle Genauigkeit, Signalstärke), sonst `Report.csv`; Tracks aus
   `TRK/Shot…Track.csv`; Geräteeinheiten aus dem Report-Kopf (fps/yd werden umgerechnet,
