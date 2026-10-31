@@ -1,6 +1,6 @@
 [project]
 name = "loadlog"
-version = "0.0.5"
+version = "0.0.6"
 description = "Laborierungs-Journal und Auswertung für LabRadar-Daten"
 requires-python = ">=3.12"
 license = "MIT"
