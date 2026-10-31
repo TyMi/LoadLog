@@ -83,6 +83,7 @@ class LoadPatch(_Body):
     crimp: str | None = _Str
     temperature_c: float | None = Field(default=None, ge=-60, le=80)
     notes: str | None = Field(default=None, max_length=4000)
+    status: Literal["draft", "testing", "validated", "retired"] | None = None  # leer = ohne Angabe (siehe LOAD_STATUS)
 
     _name_not_null = field_validator("name", "trial_type")(_not_null)
 
@@ -99,7 +100,12 @@ class SeriesPatch(_Body):
     charge_gr: float | None = Field(default=None, ge=0, le=500)
     seating_depth_mm: float | None = Field(default=None, ge=-50, le=100)
     note: str | None = Field(default=None, max_length=4000)
+    group_text: str | None = Field(default=None, max_length=200)  # Gruppengröße als freier Text
     trigger_mode: Literal["doppler", "internal", "external"] | None = None
+
+
+class DuplicateIn(_Body):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 class SettingsPatch(_Body):
@@ -136,7 +142,7 @@ def series_json(rec: SeriesRecord, with_shots: bool = False) -> dict:
         "id": rec.id, "number": rec.number, "name": rec.name, "weight_override_g": rec.weight_override_g,
         "weight_measured_g": rec.measured_weight_g, "device_id": rec.device_id, "load_id": rec.load_id, "load_ids": rec.load_ids,
         "taken_at": rec.taken_at.isoformat() if rec.taken_at else None, "charge_gr": rec.charge_gr,
-        "seating_depth_mm": rec.seating_depth_mm, "note": rec.note, "trigger_mode": rec.trigger_mode,
+        "seating_depth_mm": rec.seating_depth_mm, "note": rec.note, "group_text": rec.group_text, "trigger_mode": rec.trigger_mode,
         "shots_total": len(rec.shots), "weight_g": rec.shots[0].weight_g if rec.shots else None,
         "stats": compute(rec.shots).as_dict(),
     }
@@ -303,7 +309,9 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
     def get_load(lid: int):
         load = db.get_load(lid)
         weapon = db.get_weapon(load["weapon_id"]) if load.get("weapon_id") else None
-        return {**load_summary(load), "weapon": weapon, "series": [series_json(r) for r in load_series(lid)]}
+        parent, variants = db.load_family(lid)
+        return {**load_summary(load), "weapon": weapon, "parent": parent, "variants": variants,
+                "series": [series_json(r) for r in load_series(lid)]}
 
     @app.put("/api/loads/{lid}")
     def update_load(lid: int, body: LoadPatch):
@@ -312,6 +320,11 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
             db.get_weapon(data["weapon_id"])
         db.update_load(lid, data)
         return load_summary(db.get_load(lid))
+
+    @app.post("/api/loads/{lid}/duplicate", status_code=201)
+    def duplicate_load(lid: int, body: DuplicateIn | None = None):
+        """Neue Laborierung als Entwurf mit den Stammdaten der Vorlage (ohne Serien) und Verweis auf sie."""
+        return load_summary(db.get_load(db.duplicate_load(lid, body.name if body else None)))
 
     @app.delete("/api/loads/{lid}", status_code=204)
     def delete_load(lid: int):

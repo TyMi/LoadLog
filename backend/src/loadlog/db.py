@@ -13,18 +13,19 @@ from pathlib import Path
 from .messages import CodedError
 from .models import Series, Shot, TrackPoint
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 TRIAL_TYPES = ("single", "ladder", "seating")
+LOAD_STATUS = ("draft", "testing", "validated", "retired")  # Entwurf, in Prüfung, bewährt, ausgemustert; leer = ohne Angabe
 
 WEAPON_FIELDS = ("name", "caliber", "barrel_length_mm", "twist", "notes")
 LOAD_FIELDS = (
     "name", "trial_type", "weapon_id", "powder_maker", "powder_name", "powder_lot", "charge_gr",
     "case_maker", "case_firings", "case_trim_mm", "primer", "bullet_maker", "bullet_type",
     "bullet_weight_gr", "bullet_lot", "coal_mm", "seating_depth_mm", "seating_ref", "crimp",
-    "temperature_c", "notes",
+    "temperature_c", "notes", "status",
 )
-SERIES_FIELDS = ("name", "weight_override_g", "charge_gr", "seating_depth_mm", "note", "trigger_mode")
+SERIES_FIELDS = ("name", "weight_override_g", "charge_gr", "seating_depth_mm", "note", "trigger_mode", "group_text")
 
 _SCHEMA = """
 CREATE TABLE weapons (
@@ -38,12 +39,14 @@ CREATE TABLE loads (
   case_maker TEXT, case_firings INTEGER, case_trim_mm REAL, primer TEXT,
   bullet_maker TEXT, bullet_type TEXT, bullet_weight_gr REAL, bullet_lot TEXT,
   coal_mm REAL, seating_depth_mm REAL, seating_ref TEXT, crimp TEXT,
-  temperature_c REAL, notes TEXT, created_at TEXT NOT NULL
+  temperature_c REAL, notes TEXT, created_at TEXT NOT NULL,
+  status TEXT, parent_id INTEGER REFERENCES loads(id) ON DELETE SET NULL
 );
 CREATE TABLE series (
   id INTEGER PRIMARY KEY,
   number INTEGER NOT NULL, name TEXT, weight_override_g REAL, device_id TEXT, source_key TEXT NOT NULL UNIQUE,
-  charge_gr REAL, seating_depth_mm REAL, note TEXT, trigger_mode TEXT, imported_at TEXT NOT NULL
+  charge_gr REAL, seating_depth_mm REAL, note TEXT, trigger_mode TEXT, imported_at TEXT NOT NULL,
+  group_text TEXT
 );
 CREATE TABLE shots (
   id INTEGER PRIMARY KEY, series_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE,
@@ -84,6 +87,7 @@ class SeriesRecord:
     name: str | None = None  # frei vergebener Titel; leer = "Serie <Nr.>"
     weight_override_g: float | None = None  # überschreibt das am Gerät eingestellte Geschossgewicht (g)
     measured_weight_g: float | None = None  # Gewicht laut Messdatei, unverändert
+    group_text: str | None = None  # Gruppengröße als freier Text (z. B. "25 mm auf 100 m")
 
     @property
     def load_id(self) -> int | None:
@@ -123,6 +127,14 @@ class Database:
                 c.executescript(_SERIES_LOADS)
                 if "load_id" in cols:
                     c.execute("INSERT OR IGNORE INTO series_loads (series_id, load_id) SELECT id, load_id FROM series WHERE load_id IS NOT NULL")
+            if version < 5:  # Status und Ursprung der Laborierung, Gruppengröße der Serie
+                load_cols = {r[1] for r in c.execute("PRAGMA table_info(loads)")}
+                if "status" not in load_cols:
+                    c.execute("ALTER TABLE loads ADD COLUMN status TEXT")
+                if "parent_id" not in load_cols:
+                    c.execute("ALTER TABLE loads ADD COLUMN parent_id INTEGER REFERENCES loads(id) ON DELETE SET NULL")
+                if "group_text" not in {r[1] for r in c.execute("PRAGMA table_info(series)")}:
+                    c.execute("ALTER TABLE series ADD COLUMN group_text TEXT")
             c.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
 
     @staticmethod
@@ -223,6 +235,27 @@ class Database:
         values = self._pick(data, LOAD_FIELDS)
         values["created_at"] = datetime.now().isoformat(timespec="seconds")
         return self._insert("loads", values)
+
+    def duplicate_load(self, load_id: int, name: str | None = None) -> int:
+        """Kopiert die Stammdaten einer Laborierung (ohne Serien) als neuen Entwurf mit Verweis auf das Original."""
+        src = self._get("loads", load_id)
+        values = {k: src[k] for k in LOAD_FIELDS if k in src}
+        values["name"] = (name or f"{src['name']} (Kopie)")[:200]
+        values["status"] = "draft"
+        values["parent_id"] = load_id
+        values["created_at"] = datetime.now().isoformat(timespec="seconds")
+        return self._insert("loads", values)
+
+    def load_family(self, load_id: int) -> tuple[dict | None, list[dict]]:
+        """Ursprung (falls vorhanden) und abgeleitete Varianten einer Laborierung."""
+        with self.conn() as c:
+            row = c.execute("SELECT parent_id FROM loads WHERE id = ?", (load_id,)).fetchone()
+            parent = None
+            if row and row["parent_id"] is not None:
+                p = c.execute("SELECT id, name, status FROM loads WHERE id = ?", (row["parent_id"],)).fetchone()
+                parent = dict(p) if p else None
+            kids = [dict(r) for r in c.execute("SELECT id, name, status FROM loads WHERE parent_id = ? ORDER BY name COLLATE NOCASE", (load_id,))]
+        return parent, kids
 
     def update_load(self, load_id: int, data: dict) -> None:
         self._update("loads", load_id, self._pick(data, LOAD_FIELDS))
@@ -386,6 +419,7 @@ class Database:
             id=row["id"], load_ids=load_ids, number=row["number"], device_id=row["device_id"],
             charge_gr=row["charge_gr"], seating_depth_mm=row["seating_depth_mm"], note=row["note"],
             trigger_mode=row["trigger_mode"], imported_at=row["imported_at"], shots=shots, name=row["name"],
+            group_text=row["group_text"],
         )
 
     def list_series_ids(self, load_id: int | None = None, unassigned: bool = False) -> list[int]:

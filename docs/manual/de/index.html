@@ -51,16 +51,17 @@ docker compose up -d --build</code></pre>
 <div class="note">Im <strong>Doppler-Trigger</strong>-Modus ist V0 die Geschwindigkeit beim Eintritt des Geschosses in den Radarstrahl, nicht an der Mündung. Den verwendeten Trigger kannst du pro Serie hinterlegen; die Datei selbst enthält ihn nicht.</div></section>
 <section id="loads"><h2>Laborierungen</h2><p>Eine <strong>Laborierung</strong> fasst zusammen, was du geladen hast. Wähle <em>Neue Laborierung</em> und fülle aus, was du ablegen willst; alle Felder außer dem Namen sind optional.</p>
 <h3>Übersicht</h3>
-<p>Oben rechts wählst du die Darstellung: <em>Karten</em> oder <em>Liste</em>, und ob die Laborierungen <em>nach Waffe</em> gruppiert werden. Die Auswahl wird im Browser gemerkt.</p>
+<p>Oben rechts wählst du die Darstellung: <em>Karten</em> oder <em>Liste</em>, und ob die Laborierungen <em>nach Waffe</em> gruppiert werden. Die Auswahl wird im Browser gemerkt. Das Feld <em>Suchen</em> findet Laborierungen nach Name, Pulver, Geschoss, Waffe, Hülse, Zünder und Notiz (mehrere Wörter müssen alle vorkommen); der Statusfilter zeigt nur Laborierungen mit einem bestimmten <em>Status</em>.</p>
 <figure><img src="../img/de/06-loads-list.png" alt="Laborierungen als Liste, nach Waffe gruppiert"><figcaption>Listendarstellung, nach Waffe gruppiert. Ein Klick auf die Zeile öffnet die Laborierung.</figcaption></figure>
 <figure><img src="../img/de/02-load.png" alt="Laborierung mit Stammdaten und Serien"><figcaption>Laborierung: Stammdaten links, Serien, Statistik und Diagramme rechts.</figcaption></figure>
 <table><tr><th>Bereich</th><th>Felder</th></tr>
-<tr><td>Allgemein</td><td>Name, Versuchsart (Einzelmessung, Ladeleiter, Setztiefen-Test), Waffe</td></tr>
+<tr><td>Allgemein</td><td>Name, Versuchsart (Einzelmessung, Ladeleiter, Setztiefen-Test), Status (ohne Angabe, Entwurf, in Prüfung, bewährt, ausgemustert), Waffe</td></tr>
 <tr><td>Pulver</td><td>Hersteller, Sorte, Charge, Menge in grain</td></tr>
 <tr><td>Hülse und Zünder</td><td>Hülse (Hersteller), Anzahl Abfeuerungen, Trimmlänge, Zünder</td></tr>
 <tr><td>Geschoss</td><td>Hersteller, Typ, Gewicht in grain, Charge</td></tr>
 <tr><td>Maße</td><td>Gesamtlänge (COAL), Setztiefe in mm, Bezug der Setztiefe (z. B. Ogive), Krimp</td></tr>
 <tr><td>Sonstiges</td><td>Temperatur, Notizen</td></tr></table>
+<p>Mit <em>Duplizieren</em> legst du aus einer Laborierung eine neue an: als <em>Entwurf</em> mit denselben Stammdaten, aber ohne Serien. Die Kopie verweist auf die Vorlage (<em>Abgeleitet von</em>), die Vorlage listet ihre <em>Varianten</em>. So behältst du den Überblick, wenn du eine Ladung in Schritten abwandelst. Der <em>Status</em> ist nur deine Markierung und sagt nichts über die Eignung einer Ladung aus.</p>
 <p>Waffen verwaltest du unter <em>Waffen</em> einmal und wählst sie dann in jeder Laborierung aus. Zahlen darfst du mit Komma oder Punkt eingeben.</p>
 <h3>Serien einer Laborierung</h3>
 <ul><li><strong>Sortieren</strong> kannst du die Serien nach Datum, Pulvermenge oder Name.</li>
@@ -90,7 +91,7 @@ docker compose up -d --build</code></pre>
 <h3>Ballistischer Koeffizient (BC)</h3>
 <p>Aus der Geschwindigkeitsabnahme über die Distanz berechnet LoadLog je Schuss den BC nach G1 und G7 (ICAO-Standardatmosphäre, Einheit lb/in²) und zeigt den Mittelwert. Voraussetzung sind mindestens vier Messpunkte über mindestens 8 m. Schüsse mit zu kurzer Messstrecke und ausgeschlossene Schüsse bleiben außen vor. Der Wert ist eine Näherung unter Standardbedingungen, kein Ersatz für eine Messung unter genau definierten Bedingungen.</p>
 <h3>Name, Zuordnung, Laborierungen der Serie</h3>
-<p>Rechts gibst du der Serie einen <em>Namen</em> (leer = „Serie &lt;Nr.&gt;“), pflegst Pulvermenge, Setztiefe, Trigger-Modus und Notiz.</p>
+<p>Rechts gibst du der Serie einen <em>Namen</em> (leer = „Serie &lt;Nr.&gt;“), pflegst Pulvermenge, Setztiefe, Trigger-Modus, <em>Gruppengröße</em> (freier Text, z. B. „25 mm auf 100 m“; sie steht auch im PDF-Bericht der Serie) und Notiz.</p>
 <figure><img src="../img/de/08-series-loads.png" alt="Bereich Laborierungen dieser Serie mit zwei Laborierungen"><figcaption>Eine Serie kann in mehreren Laborierungen liegen, zum Beispiel in der Ladeleiter und in der Hauptladung.</figcaption></figure>
 <p>Im Bereich <em>Laborierungen dieser Serie</em> siehst du alle Laborierungen der Serie. Mit × nimmst du sie aus einer heraus, mit <em>Hinzufügen</em> legst du sie in eine weitere. Die Messdaten sind immer dieselben, ein Ausschluss oder eine Gewichtsänderung wirkt in allen Laborierungen.</p></section>
 <section id="ladder"><h2>Ladeleitern und Setztiefen</h2><p>LoadLog berechnet keine Ladeleitern, es stellt die Messungen dazu dar. Lege dafür eine Laborierung mit der Versuchsart <em>Ladeleiter</em> oder <em>Setztiefen-Test</em> an, importiere die Serien und trage in jeder Serie den variierten Wert ein: bei der Ladeleiter die <strong>Pulvermenge</strong>, beim Setztiefen-Test die <strong>Setztiefe</strong>. Beim Import einer GRT-Datei ist die Pulvermenge schon eingetragen.</p><p>Die Kennzahlen der Laborierung (Ø, SD, ES) fassen alle Serien zusammen. Bei einer Ladeleiter mischen sie Stufen mit unterschiedlicher Pulvermenge und sagen deshalb wenig aus; maßgeblich sind die Werte je Serie und das Diagramm.</p>

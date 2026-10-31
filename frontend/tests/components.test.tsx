@@ -93,6 +93,25 @@ describe("Laborierungsübersicht", () => {
     expect(again.container.querySelector("table")).not.toBeNull();
   });
 
+  it("sucht und filtert nach Status; zeigt den Status als Marke", async () => {
+    const withStatus = [{ ...LOADS[0], status: "validated" }, { ...LOADS[1], status: "draft", powder_name: "Anderes Pulver" }, { ...LOADS[2], status: null }];
+    fakeFetch((url) => (url === "/api/loads" ? new Response(JSON.stringify(withStatus), { headers: { "content-type": "application/json" } }) : undefined));
+    const view = mount(<LoadsView />);
+    await screen.findByText("Zebra-Last");
+    expect([...view.container.querySelectorAll(".chip")].map((c) => c.textContent)).toEqual(["bewährt", "Entwurf"]);
+    const search = screen.getByLabelText("Suchen");
+    fireEvent.input(search, { target: { value: "anderes" } });
+    await waitFor(() => expect(screen.queryByText("Zebra-Last")).toBeNull());
+    expect(screen.getByText("Ohne")).toBeTruthy();
+    fireEvent.input(search, { target: { value: "" } });
+    const select = screen.getByLabelText("Status") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "none" } });
+    await waitFor(() => expect(screen.getByText("Alpha-Last")).toBeTruthy());
+    expect(screen.queryByText("Zebra-Last")).toBeNull();
+    fireEvent.input(search, { target: { value: "gibtsnicht" } });
+    await screen.findByText("Keine Laborierung passt zu Suche und Filter.");
+  });
+
   it("gruppiert nach Waffe: alphabetisch, ohne Waffe zuletzt, Überschrift mit Anzahl", async () => {
     const view = mount(<LoadsView />);
     await screen.findByText("Zebra-Last");
@@ -143,6 +162,24 @@ describe("Serie: Laborierungen", () => {
     await waitFor(() => expect([...panel.querySelectorAll(".chip")].map((c) => c.textContent?.replace("×", "").trim())).toEqual(["Alpha-Last"]));
     expect(calls.some((c) => c.method === "DELETE" && c.url === "/api/series/7/loads/1")).toBe(true);
     expect(seriesState.load_ids).toEqual([3]);
+  });
+
+  it("speichert die Gruppengröße als freien Text an der Serie", async () => {
+    const patches: Record<string, unknown>[] = [];
+    fakeFetch((url, init) => {
+      if (url === "/api/series/7" && init?.method === "PATCH") {
+        patches.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify(seriesState), { headers: { "content-type": "application/json" } });
+      }
+      return undefined;
+    });
+    mount(<SeriesView id={7} />);
+    const input = (await screen.findByLabelText(/Gruppengröße/)) as HTMLInputElement;
+    expect(input.value).toBe("");
+    fireEvent.input(input, { target: { value: " 25 mm auf 100 m " } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0].group_text).toBe("25 mm auf 100 m");
   });
 
   it("zeigt MIP ohne Nachkommastellen", async () => {
@@ -199,6 +236,47 @@ describe("Laborierung: Ladeleiter", () => {
     fakeFetch(detail("ladder"));
     mount(<LoadView id={5} />);
     expect(await screen.findByText(/Ladeleiter: Ø, SD und ES fassen alle Stufen/)).toBeTruthy();
+  });
+
+  it("Duplizieren legt einen Entwurf an und öffnet ihn; Ursprung und Varianten sind verlinkt", async () => {
+    const bodies: unknown[] = [];
+    fakeFetch((url, init) => {
+      if (url === "/api/loads/5/duplicate" && init?.method === "POST") {
+        bodies.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify({ ...load(9, "Leiter (Kopie)", null, null), status: "draft", parent_id: 5 }), { status: 201, headers: { "content-type": "application/json" } });
+      }
+      if (url === "/api/loads/5") {
+        return new Response(JSON.stringify({ ...load(5, "Leiter", null, null), series: [], parent: { id: 2, name: "Vorlage", status: "validated" }, variants: [{ id: 7, name: "Variante B", status: "testing" }] }), { headers: { "content-type": "application/json" } });
+      }
+      return detail("single")(url);
+    });
+    const view = mount(<LoadView id={5} />);
+    const link = await screen.findByRole("link", { name: "Vorlage" });
+    expect(link.getAttribute("href")).toBe("#/load/2");
+    expect(screen.getByRole("link", { name: "Variante B" }).getAttribute("href")).toBe("#/load/7");
+    expect(view.container.textContent).toContain("(in Prüfung)");
+    fireEvent.click(screen.getByRole("button", { name: "Duplizieren" }));
+    await waitFor(() => expect(bodies).toEqual([{ name: "Leiter (Kopie)" }]));
+    await waitFor(() => expect(window.location.hash).toBe("#/load/9"));
+  });
+
+  it("speichert den Status der Laborierung", async () => {
+    const puts: Record<string, unknown>[] = [];
+    fakeFetch((url, init) => {
+      if (url === "/api/loads/5" && init?.method === "PUT") {
+        puts.push(JSON.parse(String(init.body)));
+        return new Response(JSON.stringify(load(5, "Leiter", null, null)), { headers: { "content-type": "application/json" } });
+      }
+      return detail("single")(url);
+    });
+    const view = mount(<LoadView id={5} />);
+    const select = (await screen.findAllByRole("combobox")).find((el) => (el as HTMLSelectElement).querySelector('option[value="testing"]')) as HTMLSelectElement;
+    expect(select.value).toBe("");
+    fireEvent.change(select, { target: { value: "testing" } });
+    fireEvent.click(screen.getAllByRole("button", { name: "Speichern" })[0]);
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0].status).toBe("testing");
+    expect(view.container.textContent).not.toContain("Ungültig");
   });
 
   it("zeigt den Hinweis bei einer Einzelmessung nicht", async () => {

@@ -51,16 +51,17 @@ docker compose up -d --build</code></pre>
 <div class="note">In <strong>Doppler trigger</strong> mode, V0 is the velocity when the bullet enters the radar beam, not at the muzzle. You can record the trigger used per series; the file itself does not contain it.</div></section>
 <section id="loads"><h2>Loads</h2><p>A <strong>load</strong> summarises what you loaded. Choose <em>New load</em> and fill in what you want to record; all fields except the name are optional.</p>
 <h3>Overview</h3>
-<p>At the top right you choose the display: <em>Cards</em> or <em>List</em>, and whether the loads are grouped <em>by firearm</em>. The choice is remembered in the browser.</p>
+<p>At the top right you choose the display: <em>Cards</em> or <em>List</em>, and whether the loads are grouped <em>by firearm</em>. The choice is remembered in the browser. The <em>Search</em> field finds loads by name, powder, bullet, firearm, case, primer and note (all words must occur); the status filter shows only loads with a given <em>status</em>.</p>
 <figure><img src="../img/en/06-loads-list.png" alt="Loads as a list, grouped by firearm"><figcaption>List view, grouped by firearm. Clicking a row opens the load.</figcaption></figure>
 <figure><img src="../img/en/02-load.png" alt="Load with master data and series"><figcaption>Load: master data on the left, series, statistics and charts on the right.</figcaption></figure>
 <table><tr><th>Area</th><th>Fields</th></tr>
-<tr><td>General</td><td>Name, trial type (single measurement, charge ladder, seating test), firearm</td></tr>
+<tr><td>General</td><td>Name, trial type (single measurement, charge ladder, seating test), status (none, draft, in testing, validated, retired), firearm</td></tr>
 <tr><td>Powder</td><td>Maker, type, lot, charge in grains</td></tr>
 <tr><td>Case and primer</td><td>Case (maker), number of firings, trim length, primer</td></tr>
 <tr><td>Bullet</td><td>Maker, type, weight in grains, lot</td></tr>
 <tr><td>Dimensions</td><td>Overall length (COAL), seating depth in mm, seating reference (e.g. ogive), crimp</td></tr>
 <tr><td>Other</td><td>Temperature, notes</td></tr></table>
+<p>With <em>Duplicate</em> you create a new load from an existing one: as a <em>draft</em> with the same master data but without series. The copy points to its original (<em>Derived from</em>), and the original lists its <em>variants</em>. This helps you keep track when you vary a load in steps. The <em>status</em> is only your own marker and says nothing about the suitability of a load.</p>
 <p>Manage firearms once under <em>Firearms</em> and pick them in each load. You may enter numbers with a comma or a point.</p>
 <h3>Series of a load</h3>
 <ul><li>You can <strong>sort</strong> the series by date, charge or name.</li>
@@ -90,7 +91,7 @@ docker compose up -d --build</code></pre>
 <h3>Ballistic coefficient (BC)</h3>
 <p>From the velocity decay over distance, LoadLog calculates the BC per shot for G1 and G7 (ICAO standard atmosphere, unit lb/in²) and shows the average. This needs at least four measuring points over at least 8 m. Shots with too short a tracked distance and excluded shots are left out. The value is an estimate under standard conditions, not a substitute for a measurement under precisely defined conditions.</p>
 <h3>Name, assignment, loads of the series</h3>
-<p>On the right you give the series a <em>name</em> (empty = “Series &lt;no.&gt;”) and maintain charge, seating depth, trigger mode and note.</p>
+<p>On the right you give the series a <em>name</em> (empty = “Series &lt;no.&gt;”) and maintain charge, seating depth, trigger mode, <em>group size</em> (free text, e.g. “25 mm at 100 m”; it also appears in the series PDF report) and note.</p>
 <figure><img src="../img/en/08-series-loads.png" alt="Loads of this series section with two loads"><figcaption>A series can belong to several loads, for example the charge ladder and the main load.</figcaption></figure>
 <p>The <em>Loads of this series</em> section lists all loads of the series. Use × to take it out of one and <em>Add</em> to put it into another. The measurement data is always the same; an exclusion or a weight change takes effect in all loads.</p></section>
 <section id="ladder"><h2>Charge ladders and seating depth</h2><p>LoadLog does not calculate ladders, it presents the measurements. Create a load with the trial type <em>Charge ladder</em> or <em>Seating test</em>, import the series and enter the varied value in each series: the <strong>charge</strong> for a ladder, the <strong>seating depth</strong> for a seating test. When importing a GRT file the charge is already filled in.</p><p>The load statistics (avg, SD, ES) combine all series. For a ladder they mix steps with different charges and therefore say little; the per-series values and the chart are what matter.</p>

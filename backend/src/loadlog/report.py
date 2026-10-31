@@ -139,13 +139,15 @@ def series_report(rec: SeriesRecord, load: dict | None = None, weapon: dict | No
     extra = ""
     if rec.note:
         extra = _env.from_string("<h2>{{ T.note }}</h2><p>{{ n }}</p>").render(T=T, n=rec.note)
-    if rec.charge_gr is not None or rec.seating_depth_mm is not None:
-        bits = []
-        if rec.charge_gr is not None:
-            bits.append(f"{T['charge']}: {fmt(rec.charge_gr, 1, lang)} gr")
-        if rec.seating_depth_mm is not None:
-            bits.append(f"{T['seating']}: {fmt(rec.seating_depth_mm, 2, lang)} mm")
-        extra = f'<p class="meta">{" · ".join(bits)}</p>' + extra
+    bits = []
+    if rec.charge_gr is not None:
+        bits.append(f"{T['charge']}: {fmt(rec.charge_gr, 1, lang)} gr")
+    if rec.seating_depth_mm is not None:
+        bits.append(f"{T['seating']}: {fmt(rec.seating_depth_mm, 2, lang)} mm")
+    if rec.group_text:
+        bits.append(f"{T['group']}: {rec.group_text}")
+    if bits:
+        extra = _env.from_string('<p class="meta">{{ b }}</p>').render(b=" · ".join(bits)) + extra  # Autoescape: freier Text
     body = (_load_table(load, weapon, units, lang) + extra + "<h2>" + T["avg"] + "</h2>"
             + _stats_html(st, len(rec.shots), units, lang) + bc_html
             + f'<figure>{svg}<div class="legend">{T["track_title"]}</div></figure>' + table)

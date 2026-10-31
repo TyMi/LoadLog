@@ -4,6 +4,7 @@ import { type BcFit, type Load, type LoadData, type SeriesDetail, type SeriesSum
 import { type TrackLine, nearestPoint, parsePoints } from "./chartPick";
 import { runImport, type Aggregate } from "./importRun";
 import { type Source, isUploadFile, sourcesFromDrop, sourcesFromInput } from "./importSources";
+import { type StatusFilter, filterLoads } from "./loadFilter";
 import { type GroupBy, type LoadViewMode, groupLoads } from "./loadGroups";
 import { renderAny } from "./messages";
 import { mipBasis } from "./mipBasis";
@@ -310,15 +311,19 @@ export function LoadsView() {
   const { data, error } = useAsync(() => api.loads(), []);
   const [mode, setMode] = usePref<LoadViewMode>("loadsView", ["cards", "list"], "cards");
   const [group, setGroup] = usePref<GroupBy>("loadsGroup", ["none", "weapon"], "none");
+  const [query, setQuery] = useState("");
+  const [statusF, setStatusF] = useState<StatusFilter>("all");
   if (!data) return <Loading error={error} />;
   const u = unitNames(units);
   const vText = (x: number | null) => fmt(x === null ? null : vOut(x, units), 1, lang);
   const info = (l: Load) => [l.powder_name, l.charge_gr ? `${fmt(l.charge_gr, 1, lang)} gr` : null, l.bullet_weight_gr ? `${fmt(l.bullet_weight_gr, 0, lang)} gr` : null].filter(Boolean).join(" · ");
-  const groups = groupLoads(data, group, t("noWeaponGroup"));
+  const shown = filterLoads(data, query, statusF);
+  const groups = groupLoads(shown, group, t("noWeaponGroup"));
+  const badge = (l: { status?: string | null }) => (l.status ? <span class={`chip status-${l.status}`} style={{ padding: "1px 8px", marginLeft: 8, fontSize: 12 }}>{t(`status_${l.status}` as Key)}</span> : null);
   const card = (l: Load) => (
     <article class="panel col" key={l.id}>
       <div>
-        <h2>{l.name}</h2>
+        <h2>{l.name}{badge(l)}</h2>
         <div class="muted small">
           {t(`trial_${l.trial_type}` as Key)} · {l.series_count} {t("seriesPl")} · {l.shots_total} {t("shots")}
           {l.weapon_name && group === "none" ? ` · ${l.weapon_name}` : ""}
@@ -347,7 +352,7 @@ export function LoadsView() {
       <tbody>
         {items.map((l) => (
           <tr key={l.id} class="pickable" onClick={() => go(`/load/${l.id}`)}>
-            <td><a href={`#/load/${l.id}`} onClick={(e) => e.stopPropagation()}>{l.name}</a></td>
+            <td><a href={`#/load/${l.id}`} onClick={(e) => e.stopPropagation()}>{l.name}</a>{badge(l)}</td>
             <td>{t(`trial_${l.trial_type}` as Key)}</td>
             {group === "none" && <td>{l.weapon_name ?? "–"}</td>}
             <td class="n">{l.series_count}</td><td class="n">{l.shots_total}</td>
@@ -372,7 +377,17 @@ export function LoadsView() {
         </div>
         <a class="btn primary" href="#/load/new">{t("newLoad")}</a>
       </div>
+      {data.length > 0 && (
+        <div class="row">
+          <input type="search" aria-label={t("searchLoads")} placeholder={`${t("searchLoads")}: ${t("searchLoadsHint")}`} value={query} maxLength={100} onInput={(e) => setQuery(e.currentTarget.value)} style={{ maxWidth: 420 }} />
+          <select aria-label={t("status")} value={statusF} onChange={(e) => setStatusF(e.currentTarget.value as StatusFilter)} style={{ maxWidth: 220 }}>
+            <option value="all">{t("statusAll")}</option>
+            {(["draft", "testing", "validated", "retired", "none"] as const).map((k) => <option value={k}>{t(`status_${k}` as Key)}</option>)}
+          </select>
+        </div>
+      )}
       {data.length === 0 && <p class="muted">{t("none")}</p>}
+      {data.length > 0 && shown.length === 0 && <p class="muted">{t("noMatch")}</p>}
       {groups.map((g) => (
         <section key={g.key} class="load-group">
           {g.title !== null && <h2 class="group-title">{g.title} <span class="muted small">({g.items.length})</span></h2>}
@@ -387,7 +402,7 @@ type Draft = Record<string, string>;
 const NUM_FIELDS = new Set(LOAD_GROUPS.flatMap((g) => g.fields.filter((f) => f.kind !== "text" && f.kind !== "area").map((f) => f.key)));
 
 function toDraft(load: Partial<LoadData> | null, lang: string): Draft {
-  const d: Draft = { name: load?.name ?? "", trial_type: load?.trial_type ?? "single", weapon_id: load?.weapon_id ? String(load.weapon_id) : "" };
+  const d: Draft = { name: load?.name ?? "", trial_type: load?.trial_type ?? "single", weapon_id: load?.weapon_id ? String(load.weapon_id) : "", status: load?.status ?? "" };
   for (const g of LOAD_GROUPS)
     for (const f of g.fields) {
       const v = (load as Record<string, unknown> | null)?.[f.key];
@@ -397,7 +412,7 @@ function toDraft(load: Partial<LoadData> | null, lang: string): Draft {
 }
 
 export function fromDraft(d: Draft): { data: Record<string, unknown>; bad: string[] } {
-  const data: Record<string, unknown> = { name: d.name.trim(), trial_type: d.trial_type, weapon_id: d.weapon_id ? Number(d.weapon_id) : null };
+  const data: Record<string, unknown> = { name: d.name.trim(), trial_type: d.trial_type, weapon_id: d.weapon_id ? Number(d.weapon_id) : null, status: d.status || null };
   const bad: string[] = [];
   for (const g of LOAD_GROUPS)
     for (const f of g.fields) {
@@ -504,6 +519,15 @@ export function LoadView({ id }: { id: number | null }) {
       }
     }
   };
+  const duplicate = async () => {
+    if (id === null) return;
+    try {
+      const copy = await api.duplicateLoad(id, `${data?.name ?? draft.name} (${t("copySuffix")})`.slice(0, 200));
+      go(`/load/${copy.id}`);
+    } catch (e) {
+      setInfo({ err: `${t("actionFailed")}: ${(e as Error).message}` });
+    }
+  };
   const assign = async (sid: number) => {
     if (id === null) return;
     try {
@@ -541,6 +565,12 @@ export function LoadView({ id }: { id: number | null }) {
         <h1 class="grow">{id === null ? t("newLoad") : draft.name || t("loadsTitle")}</h1>
         {id !== null && reportLinks(pdf, urls.reportLoad(id, { lang, units }), urls.reportLoad(id, { lang, units }) + "&format=html", t, urls.exportLoad(id, { lang, units }))}
       </div>
+      {id !== null && data && (data.parent || (data.variants?.length ?? 0) > 0) && (
+        <div class="muted small">
+          {data.parent && <span>{t("derivedFrom")}: <a href={`#/load/${data.parent.id}`}>{data.parent.name}</a> </span>}
+          {(data.variants?.length ?? 0) > 0 && <span>{t("variantsTitle")}: {data.variants.map((v, i) => <span key={v.id}>{i > 0 ? ", " : ""}<a href={`#/load/${v.id}`}>{v.name}</a>{v.status ? ` (${t(`status_${v.status}` as Key)})` : ""}</span>)}</span>}
+        </div>
+      )}
       <div class="sidebar-layout">
         <section class="panel side col" aria-label={t("loadName")}>
           <div class="row">
@@ -548,6 +578,12 @@ export function LoadView({ id }: { id: number | null }) {
             <Field label={t("trialType")}>
               <select value={draft.trial_type} onChange={(e) => set("trial_type", e.currentTarget.value as TrialType)}>
                 {(["single", "ladder", "seating"] as const).map((k) => <option value={k}>{t(`trial_${k}` as Key)}</option>)}
+              </select>
+            </Field>
+            <Field label={t("status")}>
+              <select value={draft.status} onChange={(e) => set("status", e.currentTarget.value)}>
+                <option value="">{t("status_none")}</option>
+                {(["draft", "testing", "validated", "retired"] as const).map((k) => <option value={k}>{t(`status_${k}` as Key)}</option>)}
               </select>
             </Field>
             <Field label={t("weapon")}>
@@ -575,6 +611,7 @@ export function LoadView({ id }: { id: number | null }) {
           ))}
           <div class="row">
             <button class="btn primary" onClick={save}>{t("save")}</button>
+            {id !== null && <button class="btn" title={t("duplicateHint")} onClick={duplicate}>{t("duplicateLoad")}</button>}
             {id !== null && <button class="btn danger" onClick={remove}>{t("deleteLoad")}</button>}
           </div>
           <Msg ok={info.ok} err={info.err} />
@@ -678,7 +715,7 @@ export function SeriesView({ id }: { id: number }) {
   useEffect(() => {
     if (data && !meta)
       setMeta({
-        name: data.name ?? "", weight_gr: data.weight_override_g ? String(Math.round((data.weight_override_g / 0.06479891) * 100) / 100).replace(".", lang === "de" ? "," : ".") : "", trigger_mode: data.trigger_mode ?? "", note: data.note ?? "",
+        name: data.name ?? "", weight_gr: data.weight_override_g ? String(Math.round((data.weight_override_g / 0.06479891) * 100) / 100).replace(".", lang === "de" ? "," : ".") : "", trigger_mode: data.trigger_mode ?? "", note: data.note ?? "", group_text: data.group_text ?? "",
         charge_gr: data.charge_gr === null ? "" : String(data.charge_gr).replace(".", lang === "de" ? "," : "."),
         seating_depth_mm: data.seating_depth_mm === null ? "" : String(data.seating_depth_mm).replace(".", lang === "de" ? "," : "."),
       });
@@ -705,7 +742,7 @@ export function SeriesView({ id }: { id: number }) {
     try {
       await api.patchSeries(id, {
         name: meta.name.trim() || null, weight_override_g: wgr === null ? null : Math.round(wgr * 0.06479891 * 10000) / 10000, trigger_mode: meta.trigger_mode || null,
-        note: meta.note.trim() || null, charge_gr: charge, seating_depth_mm: seat,
+        note: meta.note.trim() || null, group_text: meta.group_text.trim() || null, charge_gr: charge, seating_depth_mm: seat,
       });
       setData(await api.seriesDetail(id));
       setInfo({ ok: t("saved") });
@@ -825,6 +862,7 @@ export function SeriesView({ id }: { id: number }) {
                 {(["doppler", "internal", "external"] as const).map((k) => <option value={k}>{t(`trigger_${k}` as Key)}</option>)}
               </select>
             </Field>
+            <Field label={`${t("group_text")} (${t("groupTextHint")})`}><input type="text" maxLength={200} value={meta.group_text} onInput={(e) => setM("group_text", e.currentTarget.value)} /></Field>
             <Field label={t("note")}><textarea value={meta.note} maxLength={4000} onInput={(e) => setM("note", e.currentTarget.value)} /></Field>
             <div class="row">
               <button class="btn primary" onClick={saveMeta}>{t("save")}</button>
