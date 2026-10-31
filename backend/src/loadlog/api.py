@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.background import BackgroundTask
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -32,13 +33,19 @@ MAX_ID = 2**63 - 1  # größere Zahlen kann SQLite nicht speichern
 _Str = Field(default=None, max_length=200)
 
 
+class _Body(BaseModel):
+    """Basis der Eingabemodelle: Leerraum am Rand wird entfernt, NaN/Infinity abgelehnt."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, allow_inf_nan=False)
+
+
 def _not_null(v):
     if v is None:
         raise ValueError("darf nicht leer (null) sein")
     return v
 
 
-class WeaponIn(BaseModel):
+class WeaponIn(_Body):
     name: str = Field(min_length=1, max_length=200)
     caliber: str | None = _Str
     barrel_length_mm: float | None = Field(default=None, ge=0, le=2000)
@@ -52,7 +59,7 @@ class WeaponPatch(WeaponIn):
     _name_not_null = field_validator("name")(_not_null)
 
 
-class LoadPatch(BaseModel):
+class LoadPatch(_Body):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     trial_type: Literal["single", "ladder", "seating"] | None = None
     weapon_id: int | None = None
@@ -82,7 +89,7 @@ class LoadIn(LoadPatch):
     name: str = Field(min_length=1, max_length=200)
 
 
-class SeriesPatch(BaseModel):
+class SeriesPatch(_Body):
     load_id: int | None = None  # Kurzform: ersetzt die Zuordnung durch genau diese Laborierung (None = lösen)
     load_ids: list[int] | None = Field(default=None, max_length=200)  # ersetzt die Zuordnung durch diese Liste
     name: str | None = Field(default=None, max_length=200)
@@ -93,7 +100,7 @@ class SeriesPatch(BaseModel):
     trigger_mode: Literal["doppler", "internal", "external"] | None = None
 
 
-class ExcludedIn(BaseModel):
+class ExcludedIn(_Body):
     excluded: bool
 
 
@@ -174,6 +181,23 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
     @app.exception_handler(OverflowError)  # ID größer als SQLite-Integer: gibt es sicher nicht
     async def too_large(_: Request, exc: OverflowError):
         return JSONResponse({"detail": Note("not_found", what="-").as_dict()}, status_code=404)
+
+    @app.exception_handler(RequestValidationError)
+    async def invalid_input(_: Request, exc: RequestValidationError):
+        """Eingabefehler als übersetzbare Meldung; der Wert selbst wird nicht zurückgegeben (kann NaN enthalten)."""
+        err = exc.errors()[0]
+        field = ".".join(str(x) for x in err.get("loc", ()) if x not in ("body", "query", "path")) or "-"
+        ctx = err.get("ctx", {})
+        kind = err.get("type", "")
+        if kind in ("greater_than_equal", "greater_than"):
+            note = Note("value_min", field=field, limit=ctx.get("ge", ctx.get("gt")))
+        elif kind in ("less_than_equal", "less_than"):
+            note = Note("value_max", field=field, limit=ctx.get("le", ctx.get("lt")))
+        elif kind.startswith(("string_too", "too_long", "too_short")):
+            note = Note("value_length", field=field)
+        else:
+            note = Note("value_invalid", field=field)
+        return JSONResponse({"detail": note.as_dict()}, status_code=422)
 
     @app.exception_handler(NotFound)
     async def not_found(_: Request, exc: NotFound):
@@ -334,6 +358,13 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
             "load_id": load_id,
         }
 
+    def series_detail(rec: SeriesRecord) -> dict:
+        """Serie mit Schüssen und Laborierungen (Antwort von GET und von Änderungen an Schüssen)."""
+        out = series_json(rec, with_shots=True)
+        out["load"] = db.get_load(rec.load_id) if rec.load_id else None
+        out["loads"] = [db.get_load(i) for i in rec.load_ids]
+        return out
+
     @app.get("/api/series")
     def list_series(unassigned: bool = False, load_id: int | None = None):
         return [series_json(db.get_series(i)) for i in db.list_series_ids(load_id=load_id, unassigned=unassigned)]
@@ -341,14 +372,13 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
     @app.get("/api/series/{sid}")
     def get_series(sid: int):
         rec = db.get_series(sid, with_track=True)  # der BC wird aus dem Track berechnet, nicht nur aus Dx1..Dx5
-        out = series_json(rec, with_shots=True)
-        out["load"] = db.get_load(rec.load_id) if rec.load_id else None
-        out["loads"] = [db.get_load(i) for i in rec.load_ids]
-        return out
+        return series_detail(rec)
 
     @app.patch("/api/series/{sid}")
     def patch_series(sid: int, body: SeriesPatch):
         data = body.model_dump(exclude_unset=True)
+        if "name" in data and not data["name"]:
+            data["name"] = None  # leerer Name = ohne Namen
         if "load_id" in data:
             lid = data.pop("load_id")
             data.setdefault("load_ids", [] if lid is None else [lid])
@@ -376,7 +406,7 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
     @app.put("/api/series/{sid}/shots/{number}/excluded")
     def set_excluded(sid: int, number: int, body: ExcludedIn):
         db.set_shot_excluded(sid, number, body.excluded)
-        return series_json(db.get_series(sid, with_track=True), with_shots=True)
+        return series_detail(db.get_series(sid, with_track=True))
 
     @app.get("/api/compare")
     def compare(ids: str):

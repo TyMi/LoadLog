@@ -16,6 +16,7 @@ _DE = {
     "series_skipped": "{label} übersprungen: {reason}",
     "track_ignored": "{label} Schuss {shot}: Track ignoriert ({reason})",
     "insane": "{label}: {n} Schuss/Schüsse mit unplausiblen Werten verworfen",
+    "shot_duplicate": "{label}: {n} doppelte Schussnummer(n) übersprungen",
     "lbr_size": "Unerwartete Dateigröße: {bytes} Byte",
     "lbr_count": "Schusszahl im Kopf passt nicht zur Dateigröße",
     "lbr_time": "Ungültiger Zeitstempel in Schuss {shot}",
@@ -55,6 +56,10 @@ _DE = {
     "file_unreadable": "Datei nicht lesbar, übersprungen: {name}",
     "series_number_adjusted": "{label}: Seriennummer aus dem Ordnernamen übernommen (Kopfdaten: {head})",
     "weight_out_of_range": "Das Geschossgewicht der Laborierung liegt außerhalb des zulässigen Bereichs (0,1 bis 100 g)",
+    "value_min": "{field}: Wert muss mindestens {limit} sein",
+    "value_max": "{field}: Wert darf höchstens {limit} sein",
+    "value_length": "{field}: Text zu lang oder zu kurz",
+    "value_invalid": "{field}: ungültiger Wert",
     "generic": "{text}",
 }
 

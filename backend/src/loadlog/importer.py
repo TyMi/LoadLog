@@ -38,6 +38,11 @@ def drop_insane(series: Series, label: str, warnings: list[str]) -> Series:
     if len(good) != len(series.shots):
         warnings.append(Note("insane", label=label, n=len(series.shots) - len(good)))
         series.shots = good
+    seen: set[int] = set()
+    unique = [s for s in series.shots if s.number not in seen and not seen.add(s.number)]  # erster Schuss je Nummer zählt
+    if len(unique) != len(series.shots):
+        warnings.append(Note("shot_duplicate", label=label, n=len(series.shots) - len(unique)))
+        series.shots = unique
     return series
 
 

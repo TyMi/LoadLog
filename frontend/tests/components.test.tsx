@@ -157,6 +157,23 @@ describe("Serie: Laborierungen", () => {
     expect(table.querySelector("td.c-status button")).toBeTruthy(); // Schuss ausschließen bleibt erreichbar
   });
 
+  it("Schuss ausschließen aktualisiert die Seite (Antwort enthält die Laborierungen)", async () => {
+    fakeFetch((url, init) => {
+      if (url === "/api/series/7/shots/1/excluded" && init?.method === "PUT") {
+        seriesState = { ...seriesState, shots: [{ ...shot(1), excluded: true }, shot(2)] };
+        return new Response(JSON.stringify(seriesState), { headers: { "content-type": "application/json" } });
+      }
+      return undefined;
+    });
+    const view = mount(<SeriesView id={7} />, { units: "si" });
+    await screen.findByText("Laborierungen dieser Serie");
+    const first = view.container.querySelector("table.rt-shots tbody tr:first-child td.c-status button")!;
+    expect(first.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(first);
+    await waitFor(() => expect(view.container.querySelector("table.rt-shots tbody tr:first-child td.c-status button")!.getAttribute("aria-pressed")).toBe("true"));
+    expect(screen.getByText("Laborierungen dieser Serie")).toBeTruthy(); // Seite lebt noch
+  });
+
   it("Exportlink verweist auf CSV mit Sprache und Einheiten", async () => {
     mount(<SeriesView id={7} />, { lang: "en", units: "imp" });
     const a = (await screen.findByText("CSV export")).closest("a")!;
