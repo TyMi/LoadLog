@@ -59,3 +59,18 @@ jobs:
           uv run --project backend python scripts/smoke_test.py http://127.0.0.1:8080
       - if: failure()
         run: docker logs loadlog
+
+  docker-arm64:  # Raspberry Pi, Docker auf Apple Silicon, ARM-NAS; kein Pflicht-Check
+    runs-on: ubuntu-24.04-arm
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: docker build -t loadlog:ci-arm64 .
+      - run: docker run -d --name loadlog-arm64 -p 8080:8080 -e LOADLOG_HOST=0.0.0.0 loadlog:ci-arm64
+      - name: Smoketest (synthetische Demodaten)
+        run: |
+          for _ in $(seq 1 30); do curl -sf http://127.0.0.1:8080/api/health && break; sleep 1; done
+          uv run --project backend python scripts/smoke_test.py http://127.0.0.1:8080
+      - if: failure()
+        run: docker logs loadlog-arm64
