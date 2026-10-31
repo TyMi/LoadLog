@@ -104,6 +104,21 @@ export interface SeriesDetail extends SeriesSummary {
   load: (LoadData & { id: number }) | null;
   loads: (LoadData & { id: number })[];
 }
+export interface TrashSeries {
+  id: number;
+  number: number;
+  name: string | null;
+  deleted_at: string;
+  shots_total: number;
+  taken_at: string | null;
+}
+export interface TrashLoad {
+  id: number;
+  name: string;
+  status: LoadStatus | null;
+  deleted_at: string;
+  series_count: number;
+}
 export interface ImportResult {
   imported: { id: number; number: number }[];
   skipped: number;
@@ -152,6 +167,10 @@ export const api = {
   load: (id: number) => req<Load & { weapon: Weapon | null; parent: LoadRef | null; variants: LoadRef[]; series: SeriesSummary[] }>("GET", `/api/loads/${id}`),
   createLoad: (d: Partial<LoadData>) => req<Load>("POST", "/api/loads", d),
   updateLoad: (id: number, d: Partial<LoadData>) => req<Load>("PUT", `/api/loads/${id}`, d),
+  trash: () => req<{ series: TrashSeries[]; loads: TrashLoad[] }>("GET", "/api/trash"),
+  restoreTrash: (kind: "series" | "loads", id: number) => req<unknown>("POST", `/api/trash/${kind}/${id}/restore`),
+  purgeTrash: (kind: "series" | "loads", id: number) => req<unknown>("DELETE", `/api/trash/${kind}/${id}`),
+  emptyTrash: () => req<unknown>("DELETE", "/api/trash"),
   duplicateLoad: (id: number, name: string) => req<Load>("POST", `/api/loads/${id}/duplicate`, { name }),
   deleteLoad: (id: number) => req<void>("DELETE", `/api/loads/${id}`),
   applyWeight: (id: number, clear = false) =>

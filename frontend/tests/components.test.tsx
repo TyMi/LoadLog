@@ -5,7 +5,7 @@ import { AppCtx } from "../src/app";
 import { tr } from "../src/i18n";
 import { setMessageLang } from "../src/messages";
 import type { Lang, Units } from "../src/units";
-import { LoadView, LoadsView, SeriesView, SettingsView } from "../src/views";
+import { LoadView, LoadsView, SeriesView, SettingsView, TrashView } from "../src/views";
 
 const stats = { n: 5, avg: 300, sd: 2, es: 6, vmin: 297, vmax: 303, energy_avg_j: 3000, mip_avg: 349.6, mip_min: 340.2 };
 const load = (id: number, name: string, weapon_id: number | null, weapon_name: string | null) => ({
@@ -385,5 +385,64 @@ describe("Einstellungen", () => {
     pickFile(view);
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Not a valid LoadLog backup");
+  });
+});
+
+
+describe("Papierkorb", () => {
+  const trashState = () => ({
+    series: [{ id: 3, number: 3, name: null, deleted_at: "2030-02-01T09:15:00", shots_total: 8, taken_at: "2030-01-15T10:00:00" }],
+    loads: [{ id: 4, name: "Alte Ladung", status: "retired", deleted_at: "2030-02-02T18:30:00", series_count: 2 }],
+  });
+
+  it("zeigt gelöschte Laborierungen und Serien mit Datum und stellt sie wieder her", async () => {
+    let state = trashState();
+    fakeFetch((url, init) => {
+      const json = (b: unknown) => new Response(JSON.stringify(b), { headers: { "content-type": "application/json" } });
+      if (url === "/api/trash" && (init?.method ?? "GET") === "GET") return json(state);
+      if (url === "/api/trash/series/3/restore" && init?.method === "POST") {
+        state = { ...state, series: [] };
+        return json({ restored: "series", id: 3 });
+      }
+      return undefined;
+    });
+    const view = mount(<TrashView />);
+    await screen.findByText("Alte Ladung (ausgemustert)");
+    expect(view.container.textContent).toContain("02.02.2030 18:30");
+    expect(view.container.textContent).toContain("01.02.2030 09:15");
+    expect(screen.getByText("Serie 3")).toBeTruthy();
+    const row = screen.getByText("Serie 3").closest("tr")!;
+    fireEvent.click(within(row).getByRole("button", { name: "Wiederherstellen" }));
+    await waitFor(() => expect(screen.queryByText("Serie 3")).toBeNull());
+    expect(calls.some((c) => c.method === "POST" && c.url === "/api/trash/series/3/restore")).toBe(true);
+    expect(screen.getByText("Alte Ladung (ausgemustert)")).toBeTruthy();
+  });
+
+  it("löscht endgültig nur nach Rückfrage und kann den Papierkorb leeren", async () => {
+    let state = trashState();
+    const answers = [false, true, true];
+    vi.stubGlobal("confirm", vi.fn(() => answers.shift() ?? false));
+    fakeFetch((url, init) => {
+      const json = (b: unknown) => new Response(JSON.stringify(b), { headers: { "content-type": "application/json" } });
+      if (url === "/api/trash" && (init?.method ?? "GET") === "GET") return json(state);
+      if (url === "/api/trash/loads/4" && init?.method === "DELETE") {
+        state = { ...state, loads: [] };
+        return json({ series: 0, loads: 1 });
+      }
+      if (url === "/api/trash" && init?.method === "DELETE") {
+        state = { series: [], loads: [] };
+        return json({ series: 1, loads: 0 });
+      }
+      return undefined;
+    });
+    mount(<TrashView />);
+    const loadRow = (await screen.findByText("Alte Ladung (ausgemustert)")).closest("tr")!;
+    fireEvent.click(within(loadRow).getByRole("button", { name: "Endgültig löschen" }));
+    expect(calls.some((c) => c.method === "DELETE")).toBe(false); // abgelehnt: nichts geschickt
+    fireEvent.click(within(loadRow).getByRole("button", { name: "Endgültig löschen" }));
+    await waitFor(() => expect(screen.queryByText("Alte Ladung (ausgemustert)")).toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Papierkorb leeren" }));
+    await screen.findByText("Der Papierkorb ist leer.");
+    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.url)).toEqual(["/api/trash/loads/4", "/api/trash"]);
   });
 });

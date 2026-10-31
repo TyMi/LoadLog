@@ -570,6 +570,24 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
         finally:
             os.unlink(tmp)
 
+    # ---- Papierkorb ----
+    @app.get("/api/trash")
+    def get_trash():
+        return db.list_trash()
+
+    @app.post("/api/trash/{kind}/{rid}/restore")
+    def restore_trash(kind: Literal["series", "loads"], rid: int):
+        db.restore_from_trash(kind, rid)
+        return {"restored": kind, "id": rid}
+
+    @app.delete("/api/trash/{kind}/{rid}")
+    def purge_trash_entry(kind: Literal["series", "loads"], rid: int):
+        return db.purge(kind, rid)
+
+    @app.delete("/api/trash")
+    def empty_trash():
+        return db.purge()
+
     # ---- Einstellungen des Servers ----
     @app.get("/api/settings")
     def get_settings():

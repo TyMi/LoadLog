@@ -195,6 +195,87 @@ const reportLinks = (pdf: boolean, pdfUrl: string, htmlUrl: string, t: (k: Key) 
 const dateText = (iso: string | null, lang: string) => (iso ? new Date(iso).toLocaleDateString(lang === "de" ? "de-DE" : "en-GB") : "–");
 
 // ---------- Einstellungen ----------
+/** Zeitstempel des Servers (lokale Zeit ohne Zone) als Datum mit Uhrzeit in der Sprache der Oberfläche. */
+const stamp = (iso: string, lang: string) => {
+  const [d, t] = iso.split("T");
+  const [y, m, day] = d.split("-");
+  return `${lang === "de" ? `${day}.${m}.${y}` : `${day}/${m}/${y}`} ${(t ?? "").slice(0, 5)}`.trim();
+};
+
+export function TrashView() {
+  const { t, lang } = useApp();
+  const { data, error, reload } = useAsync(() => api.trash(), []);
+  const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
+  if (!data) return <Loading error={error} />;
+  const run = async (action: () => Promise<unknown>, ok?: string) => {
+    try {
+      await action();
+      setMsg(ok ? { ok } : {});
+      reload();
+    } catch (e) {
+      setMsg({ err: `${t("actionFailed")}: ${(e as Error).message}` });
+    }
+  };
+  const purge = (kind: "series" | "loads", id: number) => confirm(t("trashPurgeConfirm")) && run(() => api.purgeTrash(kind, id));
+  const empty = data.series.length === 0 && data.loads.length === 0;
+  const buttons = (kind: "series" | "loads", id: number) => (
+    <td class="acts">
+      <button class="btn" onClick={() => run(() => api.restoreTrash(kind, id))}>{t("trashRestore")}</button>
+      <button class="btn danger" onClick={() => purge(kind, id)}>{t("trashPurge")}</button>
+    </td>
+  );
+  return (
+    <>
+      <div class="row">
+        <h1 class="grow">{t("trashTitle")}</h1>
+        {!empty && <button class="btn danger" onClick={() => confirm(t("trashEmptyConfirm")) && run(() => api.emptyTrash())}>{t("trashEmptyAll")}</button>}
+      </div>
+      <div class="muted small">{t("trashHint")}</div>
+      {msg.ok && <div role="status">{msg.ok}</div>}
+      {msg.err && <div role="alert" style={{ color: "var(--red, #ff8a80)" }}>{msg.err}</div>}
+      {empty && <p class="muted">{t("trashEmptyState")}</p>}
+      {data.loads.length > 0 && (
+        <section class="panel col">
+          <h2>{t("loadsTitle")}</h2>
+          <table class="wlist">
+            <thead><tr><th>{t("loadName")}</th><th class="n">{t("seriesPl")}</th><th>{t("trashDeletedAt")}</th><th /></tr></thead>
+            <tbody>
+              {data.loads.map((l) => (
+                <tr key={l.id}>
+                  <td>{l.name}{l.status ? ` (${t(`status_${l.status}` as Key)})` : ""}</td>
+                  <td class="n">{l.series_count}</td>
+                  <td>{stamp(l.deleted_at, lang)}</td>
+                  {buttons("loads", l.id)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div class="muted small">{t("trashSeriesNote")}</div>
+        </section>
+      )}
+      {data.series.length > 0 && (
+        <section class="panel col">
+          <h2>{t("seriesPl")}</h2>
+          <table class="wlist">
+            <thead><tr><th>{t("series")}</th><th class="n">{t("shots")}</th><th>{t("date")}</th><th>{t("trashDeletedAt")}</th><th /></tr></thead>
+            <tbody>
+              {data.series.map((s) => (
+                <tr key={s.id}>
+                  <td>{seriesLabel(s, t("series"))}</td>
+                  <td class="n">{s.shots_total}</td>
+                  <td>{dateText(s.taken_at, lang)}</td>
+                  <td>{stamp(s.deleted_at, lang)}</td>
+                  {buttons("series", s.id)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+    </>
+  );
+}
+
 export function SettingsView() {
   const { t, lang, units, pdf, version, manualVersion, setLang, setUnits } = useApp();
   const [msg, setMsg] = useState<{ ok?: string; err?: string }>({});
@@ -751,7 +832,7 @@ export function SeriesView({ id }: { id: number }) {
     }
   };
   const removeSeries = async () => {
-    if (!confirm(t("confirmDelete"))) return;
+    if (!confirm(`${t("confirmDelete")}\n${t("trashMovedHint")}`)) return;
     try {
       await api.deleteSeries(id);
       go(data.load_id ? `/load/${data.load_id}` : "/");

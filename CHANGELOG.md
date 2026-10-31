@@ -2,6 +2,13 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.11
+
+- **Papierkorb:** Gelöschte Serien und Laborierungen werden nicht mehr sofort entfernt, sondern in den Papierkorb (Menü *Papierkorb*) verschoben. Von dort lassen sie sich wiederherstellen (Serien samt ihren Zuordnungen) oder endgültig löschen, einzeln oder mit *Papierkorb leeren*. Es wird nichts automatisch gelöscht. Eine Sicherung enthält den Papierkorb; Waffen werden weiterhin sofort gelöscht.
+- **Verhalten:** Serien einer gelöschten Laborierung bleiben erhalten und gelten bis zur Wiederherstellung als nicht zugeordnet. Importierst du eine Serie erneut, deren Kopie im Papierkorb liegt, ersetzt der neue Import die Kopie.
+- **Schnittstelle:** `GET /api/trash`, `POST /api/trash/{series|loads}/{id}/restore`, `DELETE /api/trash/{series|loads}/{id}` und `DELETE /api/trash`. `DELETE /api/series/{id}` und `DELETE /api/loads/{id}` verschieben jetzt in den Papierkorb.
+- **Datenbank:** Schema 6 (Spalte `deleted_at` bei `series` und `loads`); ältere Datenbanken und Sicherungen werden migriert.
+
 ## 0.0.10
 
 - **Status der Laborierung:** Entwurf, in Prüfung, bewährt oder ausgemustert (oder ohne Angabe), als Marke in Karten und Liste sichtbar.
