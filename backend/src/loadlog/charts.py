@@ -132,6 +132,51 @@ def track_chart(rec: SeriesRecord, *, selected: int | None = None, units: str = 
     return _svg(f.axes() + "".join(lines), p, i18n.t(lang, "aria_track"), theme)
 
 
+def moving_average(values: list[float], window: int) -> list[float | None]:
+    """Gleitender Mittelwert über die letzten `window` Werte; die ersten window-1 Stellen bleiben leer (None)."""
+    out: list[float | None] = []
+    for i in range(len(values)):
+        out.append(sum(values[i - window + 1:i + 1]) / window if i + 1 >= window else None)
+    return out
+
+
+def sequence_chart(rec: SeriesRecord, *, window: int = 3, units: str = "si", lang: str = "de", theme: str = "dark") -> str:
+    """V0 über die Schussfolge mit gleitendem Mittelwert und linearem Trend (Erwärmung, Verschmutzung); ausgeschlossene Schüsse als offene Kreise."""
+    p, un = PALETTES[theme], unit_names(units)
+    shots = sorted(rec.shots, key=lambda s: s.number)
+    if not shots:
+        return _empty(lang, theme)
+    vals = [v_out(s.v0_ms, units) for s in shots]
+    n = shots[-1].number
+    xt = [float(k) for k in range(1, n + 1)]
+    step = max(1, math.ceil(n / 15))
+    f = _Frame(0.5, n + 0.5, min(vals), max(vals), p, lang, i18n.t(lang, "shot"), f"V0 ({un['v']})", xticks=xt)
+    out = [f.axes({float(k): str(k) for k in range(1, n + 1) if k % step == 0 or k == 1})]
+    inc = [(s.number, v) for s, v in zip(shots, vals, strict=True) if not s.excluded]
+    ma = moving_average([v for _, v in inc], window)
+    pts = [(f.x(k), f.y(m)) for (k, _), m in zip(inc, ma, strict=True) if m is not None]
+    fit = linear_fit([float(k) for k, _ in inc], [v for _, v in inc]) if len(inc) >= 3 else None
+    if fit:
+        slope, icpt = fit
+        out.append(f'<line x1="{f.x(0.6):.1f}" y1="{f.y(slope * 0.6 + icpt):.1f}" x2="{f.x(n + 0.4):.1f}" y2="{f.y(slope * (n + 0.4) + icpt):.1f}" '
+                   f'stroke="{p["fg"]}" stroke-width="1.6" stroke-dasharray="8 5" opacity="0.8"/>')
+        label = f"{i18n.t(lang, 'trend')} {'+' if slope >= 0 else '−'}{fmt(abs(slope), 2, lang)} {un['v']} {i18n.t(lang, 'trend_per_shot')}"
+        out.append(f'<text x="{W - MR}" y="{MT + 10}" fill="{p["fg"]}" font-size="11" text-anchor="end">{escape(label)}</text>')
+    if len(pts) >= 2:
+        coords = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
+        out.append(f'<polyline points="{coords}" fill="none" stroke="{p["sel"]}" stroke-width="2.5"/>')
+        out.append(f'<text x="{W - MR}" y="{MT + 25}" fill="{p["sel"]}" font-size="11" text-anchor="end">'
+                   f'{escape(i18n.t(lang, "moving_avg").format(n=window))}</text>')
+    for s, v in zip(shots, vals, strict=True):
+        x, y = f.x(float(s.number)), f.y(v)
+        tip = f"{i18n.t(lang, 'shot')} {s.number}: {fmt(v, 1, lang)} {un['v']}" + (f" ({i18n.t(lang, 'excluded')})" if s.excluded else "")
+        if s.excluded:
+            out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="none" stroke="{p["excl"]}" stroke-width="1.5"><title>{escape(tip)}</title></circle>')
+        else:
+            out.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.5" fill="{p["line"]}"><title>{escape(tip)}</title></circle>')
+    return _svg("".join(out), p, i18n.t(lang, "aria_sequence"), theme)
+
+
 def strip_chart(columns: list[tuple[str, SeriesRecord, Stats]], *, trend: bool = True, units: str = "si",
                 lang: str = "de", theme: str = "dark") -> str:
     """V0 aller Schüsse je Serie als Punktewolke mit Mittelwert, ±1 SD und optionalem Trend."""

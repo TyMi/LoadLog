@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi import FastAPI, HTTPException, Query, Request, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -470,6 +470,12 @@ def create_app(db_path: str | Path | None = None, static_dir: str | Path | None 
     def chart_series(sid: int, sel: int | None = None, lang: str = "de", units: str = "si", theme: str = "dark"):
         lang, units, theme = opts(lang, units, theme)
         return svg(charts.track_chart(db.get_series(sid, with_track=True), selected=sel, units=units, lang=lang, theme=theme))
+
+    @app.get("/api/charts/series/{sid}/sequence.svg")
+    def chart_sequence(sid: int, window: int = Query(3, ge=2, le=10), lang: str = "de", units: str = "si", theme: str = "dark"):
+        """V0 über die Schussfolge mit gleitendem Mittelwert (Fenster 2 bis 10 Schüsse) und Trend."""
+        lang, units, theme = opts(lang, units, theme)
+        return svg(charts.sequence_chart(db.get_series(sid), window=window, units=units, lang=lang, theme=theme))
 
     @app.get("/api/charts/compare.svg")
     def chart_compare(ids: str, trend: bool = True, lang: str = "de", units: str = "si", theme: str = "dark"):
