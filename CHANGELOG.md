@@ -2,6 +2,10 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.15
+
+- **Laborierungstabelle:** Die letzte Spaltenüberschrift „Aus dieser Laborierung nehmen“ ist nicht mehr sichtbar (nur noch für Screenreader); der Knopf × behält seinen Tooltip. Die Tabelle wird dadurch nicht mehr unnötig breit.
+
 ## 0.0.14
 
 - **Statusfilter der Laborierungen:** Standard ist jetzt *Aktive*: ausgemusterte Laborierungen sind ausgeblendet, ein Hinweis nennt ihre Anzahl und blendet sie auf Klick ein. Eine Suche findet auch ausgemusterte. Die Auswahl wird im Browser gemerkt; *Alle (inkl. ausgemusterte)* und die einzelnen Status bleiben wählbar.
