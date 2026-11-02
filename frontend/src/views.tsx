@@ -755,7 +755,7 @@ export function LoadView({ id }: { id: number | null }) {
               {series.length > 0 && (
                 <div style={{ overflowX: "auto" }}>
                   <table class="rt">
-                    <thead><tr><th><span class="muted small">{t("selectSeries")}</span></th><th>{t("series")}</th><th class="n">{t("charge_gr")}</th><th class="n">{t("seating_depth_mm")}</th><th class="n">{t("shots")}</th><th class="n">Ø ({u.v})</th><th class="n">SD</th><th class="n">ES</th><th><span class="muted small">{t("removeHere")}</span></th></tr></thead>
+                    <thead><tr><th><span class="muted small">{t("selectSeries")}</span></th><th>{t("series")}</th><th class="n">{t("charge_gr")}</th><th class="n">{t("seating_depth_mm")}</th><th class="n">{t("shots")}</th><th class="n">Ø ({u.v})</th><th class="n">SD</th><th class="n">ES</th><th class="c-x"><span class="sr-only">{t("removeHere")}</span></th></tr></thead>
                     <tbody>
                       {series.map((s) => (
                         <tr key={s.id}>
