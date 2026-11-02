@@ -480,8 +480,8 @@ export function LoadsView() {
       </div>
       {data.length > 0 && (
         <div class="row">
-          <input type="search" aria-label={t("searchLoads")} placeholder={`${t("searchLoads")}: ${t("searchLoadsHint")}`} value={query} maxLength={100} onInput={(e) => setQuery(e.currentTarget.value)} style={{ maxWidth: 420 }} />
-          <select aria-label={t("status")} value={statusF} onChange={(e) => setStatusF(e.currentTarget.value as StatusFilter)} style={{ maxWidth: 220 }}>
+          <input type="search" aria-label={t("searchLoads")} placeholder={`${t("searchLoads")}: ${t("searchLoadsHint")}`} value={query} maxLength={100} onInput={(e) => setQuery(e.currentTarget.value)} style={{ flex: "1 1 200px", maxWidth: "420px", minHeight: "44px", width: "auto" }} />
+          <select aria-label={t("status")} value={statusF} onChange={(e) => setStatusF(e.currentTarget.value as StatusFilter)} style={{ flex: "0 1 230px", width: "auto" }}>
             <option value="active">{t("statusActive")}</option>
             <option value="all">{t("statusAll")}</option>
             {(["draft", "testing", "validated", "retired", "none"] as const).map((k) => <option value={k}>{t(`status_${k}` as Key)}</option>)}
