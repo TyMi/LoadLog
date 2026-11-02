@@ -2,6 +2,10 @@
 
 Versionsnummern sind dreistufig (`Major.Minor.Patch`) und werden von Hand erhöht. Das Handbuch gilt für `Major.Minor`.
 
+## 0.0.14
+
+- **Statusfilter der Laborierungen:** Standard ist jetzt *Aktive*: ausgemusterte Laborierungen sind ausgeblendet, ein Hinweis nennt ihre Anzahl und blendet sie auf Klick ein. Eine Suche findet auch ausgemusterte. Die Auswahl wird im Browser gemerkt; *Alle (inkl. ausgemusterte)* und die einzelnen Status bleiben wählbar.
+
 ## 0.0.13
 
 - **Energie über Distanz:** Neues Diagramm in der Serienansicht und im PDF-Bericht der Serie: mittlere Energie an der Mündung und an den Messdistanzen mit ±1 SD und Werten an den Punkten (ausgeschlossene Schüsse zählen nicht; Achse an die Daten angepasst). Schnittstelle `GET /api/charts/series/{id}/energy.svg`.
