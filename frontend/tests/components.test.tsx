@@ -112,6 +112,20 @@ describe("Laborierungsübersicht", () => {
     await screen.findByText("Keine Laborierung passt zu Suche und Filter.");
   });
 
+  it("blendet ausgemusterte standardmäßig aus und zeigt sie auf Wunsch", async () => {
+    localStorage.removeItem("loadsStatus");
+    const list = [{ ...LOADS[0], status: "retired" }, { ...LOADS[1], status: "draft" }, { ...LOADS[2], status: null }];
+    fakeFetch((url) => (url === "/api/loads" ? new Response(JSON.stringify(list), { headers: { "content-type": "application/json" } }) : undefined));
+    mount(<LoadsView />);
+    await screen.findByText("Alpha-Last");
+    expect(screen.queryByText("Zebra-Last")).toBeNull();
+    screen.getByText(/1 ausgemusterte ausgeblendet/);
+    fireEvent.click(screen.getByRole("button", { name: "Anzeigen" }));
+    await screen.findByText("Zebra-Last");
+    expect(localStorage.getItem("loadsStatus")).toBe("all");
+    localStorage.removeItem("loadsStatus");
+  });
+
   it("gruppiert nach Waffe: alphabetisch, ohne Waffe zuletzt, Überschrift mit Anzahl", async () => {
     const view = mount(<LoadsView />);
     await screen.findByText("Zebra-Last");

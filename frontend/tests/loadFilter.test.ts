@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterLoads } from "../src/loadFilter";
+import { filterLoads, hiddenRetired } from "../src/loadFilter";
 
 const loads = [
   { name: "Leiter A", status: "testing", powder_name: "N140", bullet_type: "SMK", weapon_name: "Sport" },
@@ -20,5 +20,16 @@ describe("filterLoads", () => {
     expect(filterLoads(loads, "", "validated").map((l) => l.name)).toEqual(["Haupt"]);
     expect(filterLoads(loads, "", "none").map((l) => l.name)).toEqual(["Alt"]);
     expect(filterLoads(loads, "sport", "testing").map((l) => l.name)).toEqual(["Leiter A"]);
+  });
+
+  it("aktive blenden ausgemusterte aus, eine Suche findet sie trotzdem", () => {
+    expect(filterLoads(loads, "", "active").map((l) => l.name)).toEqual(["Leiter A", "Haupt", "Alt"]);
+    expect(filterLoads(loads, "weg", "active").map((l) => l.name)).toEqual(["Weg"]);
+    expect(filterLoads(loads, "", "retired").map((l) => l.name)).toEqual(["Weg"]);
+  });
+  it("zählt ausgeblendete ausgemusterte nur ohne Suche und im Filter aktive", () => {
+    expect(hiddenRetired(loads, "", "active")).toBe(1);
+    expect(hiddenRetired(loads, "x", "active")).toBe(0);
+    expect(hiddenRetired(loads, "", "all")).toBe(0);
   });
 });

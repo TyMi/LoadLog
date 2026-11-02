@@ -5,7 +5,7 @@ import { type BcFit, type Load, type LoadData, type SeriesDetail, type SeriesSum
 import { type TrackLine, nearestPoint, parsePoints } from "./chartPick";
 import { runImport, type Aggregate } from "./importRun";
 import { type Source, isUploadFile, sourcesFromDrop, sourcesFromInput } from "./importSources";
-import { type StatusFilter, filterLoads } from "./loadFilter";
+import { type StatusFilter, filterLoads, hiddenRetired } from "./loadFilter";
 import { type GroupBy, type LoadViewMode, groupLoads } from "./loadGroups";
 import { renderAny } from "./messages";
 import { mipBasis } from "./mipBasis";
@@ -412,12 +412,13 @@ export function LoadsView() {
   const [mode, setMode] = usePref<LoadViewMode>("loadsView", ["cards", "list"], "cards");
   const [group, setGroup] = usePref<GroupBy>("loadsGroup", ["none", "weapon"], "none");
   const [query, setQuery] = useState("");
-  const [statusF, setStatusF] = useState<StatusFilter>("all");
+  const [statusF, setStatusF] = usePref<StatusFilter>("loadsStatus", ["active", "all", "draft", "testing", "validated", "retired", "none"], "active");
   if (!data) return <Loading error={error} />;
   const u = unitNames(units);
   const vText = (x: number | null) => fmt(x === null ? null : vOut(x, units), 1, lang);
   const info = (l: Load) => [l.powder_name, l.charge_gr ? `${fmt(l.charge_gr, 1, lang)} gr` : null, l.bullet_weight_gr ? `${fmt(l.bullet_weight_gr, 0, lang)} gr` : null].filter(Boolean).join(" · ");
   const shown = filterLoads(data, query, statusF);
+  const hidden = hiddenRetired(data, query, statusF);
   const groups = groupLoads(shown, group, t("noWeaponGroup"));
   const badge = (l: { status?: string | null }) => (l.status ? <span class={`chip status-${l.status}`} style={{ padding: "1px 8px", marginLeft: 8, fontSize: 12 }}>{t(`status_${l.status}` as Key)}</span> : null);
   const card = (l: Load) => (
@@ -481,12 +482,18 @@ export function LoadsView() {
         <div class="row">
           <input type="search" aria-label={t("searchLoads")} placeholder={`${t("searchLoads")}: ${t("searchLoadsHint")}`} value={query} maxLength={100} onInput={(e) => setQuery(e.currentTarget.value)} style={{ maxWidth: 420 }} />
           <select aria-label={t("status")} value={statusF} onChange={(e) => setStatusF(e.currentTarget.value as StatusFilter)} style={{ maxWidth: 220 }}>
+            <option value="active">{t("statusActive")}</option>
             <option value="all">{t("statusAll")}</option>
             {(["draft", "testing", "validated", "retired", "none"] as const).map((k) => <option value={k}>{t(`status_${k}` as Key)}</option>)}
           </select>
         </div>
       )}
       {data.length === 0 && <p class="muted">{t("none")}</p>}
+      {hidden > 0 && (
+        <p class="muted small">
+          {t("retiredHidden").replace("{n}", String(hidden))} <button class="btn ghost" onClick={() => setStatusF("all")}>{t("retiredShow")}</button>
+        </p>
+      )}
       {data.length > 0 && shown.length === 0 && <p class="muted">{t("noMatch")}</p>}
       {groups.map((g) => (
         <section key={g.key} class="load-group">
